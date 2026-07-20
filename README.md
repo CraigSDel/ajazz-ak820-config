@@ -2,7 +2,12 @@
 
 A browser-based tool to configure the AJAZZ AK820 Pro mechanical keyboard. Syncs system time and uploads static or animated images to the keyboard's 128×128 TFT screen via WebHID — no native install required.
 
-**Live:** <https://beattrey.github.io/ajazz-ak820-config/>
+**Live:** <https://craigsdel.github.io/ajazz-ak820-config/>
+
+This is an independent, community-built project based on a reverse-engineered
+device protocol. It is not affiliated with or endorsed by AJAZZ. Time and image
+operations have protocol coverage, while the newer lighting features still need
+broader validation on physical keyboards and firmware variants.
 
 ## Requirements
 
@@ -10,12 +15,18 @@ A browser-based tool to configure the AJAZZ AK820 Pro mechanical keyboard. Syncs
 - **Connection**: USB-C in **wired** mode. The keyboard's vendor HID interface (used for time sync and image upload) is only exposed over USB; Bluetooth and the 2.4 GHz dongle do not expose it.
 - **OS**: any — Chrome's WebHID works the same on macOS, Linux, and Windows.
 
+The device picker currently recognizes USB vendor ID `0x0c45` and product IDs
+`0x8009` (AK820 Pro wired mode) and `0xfefe` (an unverified sibling/dongle ID).
+Other AK820 variants, layouts, and firmware revisions may use different HID
+interfaces and are not currently supported.
+
 ## Usage
 
 1. Plug the keyboard in via USB-C and set its mode switch to **wired**.
-2. Open <https://beattrey.github.io/ajazz-ak820-config/> in Chrome or Edge.
+2. Open <https://craigsdel.github.io/ajazz-ak820-config/> in Chrome or Edge.
 3. Click **Connect keyboard** and grant permission in the device picker.
-4. Use the **Time** and **Image** panels.
+4. Use the **Time**, **Lighting**, and **Image** panels. Changes are sent directly
+   to the connected keyboard; there is no account or cloud service.
 
 ## Status
 
@@ -49,12 +60,21 @@ The bundle ships with a strict Content-Security-Policy: no inline scripts, no th
 
 ## Development
 
+The app uses React, TypeScript, Vite, the browser WebHID API, and Vitest. Local
+development requires Node.js 22 or a compatible current Node.js release and
+npm. No AJAZZ desktop driver or backend service is required.
+
 ```bash
-npm install
+npm ci
 npm run dev      # opens http://localhost:5173/ajazz-ak820-config/
 npm run test     # unit + component tests
+npm run lint     # lint src/ with Biome
 npm run build    # production build
+npm run preview  # preview the production build locally
 ```
+
+Use `npm run test:watch` while developing. Run `npm run format` to format files
+under `src/` with Biome.
 
 Alternatively, start the app from any directory with:
 
@@ -74,6 +94,51 @@ arguments to Vite (for example, `./start.sh --host`).
 - `src/operations.ts` — high-level time, lighting, sleep, and image orchestration.
 
 See [`docs/protocol-notes.md`](docs/protocol-notes.md) for byte-level protocol details and [`docs/manual-test.md`](docs/manual-test.md) for the hardware test plan.
+
+The broader feature status and remaining hardware research are tracked in
+[`docs/features.md`](docs/features.md). Reverse-engineering notes and lessons
+learned are collected in [`docs/learnings/`](docs/learnings/README.md).
+
+## Troubleshooting
+
+- **The keyboard does not appear in the picker:** use a data-capable USB-C
+  cable, select wired mode, disconnect the 2.4 GHz receiver, and reload the
+  page. Bluetooth devices cannot be selected through WebHID.
+- **The Connect button is unavailable:** open the site in a Chromium browser
+  over HTTPS or from `localhost`. WebHID is unavailable in Firefox and Safari
+  and requires a secure context.
+- **The keyboard stops responding:** press a key to wake it, then retry. If the
+  page still reports it as disconnected, reconnect through the Connection
+  panel and grant access to both vendor HID interfaces when prompted.
+- **Linux access is denied:** the browser may need permission to open the
+  keyboard's HID interfaces. Check your distribution's `udev` configuration
+  and restart the browser after changing device permissions.
+- **A processed image looks different:** the display accepts RGB565 pixels at
+  128 × 128, so colors and transparency are reduced during conversion. See the
+  limits above for resizing and padding behavior.
+
+When reporting a hardware issue, include the operating system, browser version,
+keyboard model/layout, connection mode, USB vendor/product IDs, firmware
+version if known, the operation attempted, and the exact error shown. Do not
+attach proprietary AJAZZ driver binaries or captures containing unrelated USB
+traffic.
+
+## Contributing
+
+Bug reports, protocol findings, tests, and focused pull requests are welcome.
+Before submitting a code change, run:
+
+```bash
+npm run test
+npm run lint
+npm run build
+```
+
+Protocol changes should include byte-level fixtures or tests and, where
+possible, the corresponding non-destructive hardware check from
+[`docs/manual-test.md`](docs/manual-test.md). Key remapping and macro support
+should not be exposed until their packet formats and safe restoration paths are
+confirmed on physical hardware.
 
 ## GitHub Pages deployment
 
