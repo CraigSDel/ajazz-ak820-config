@@ -105,6 +105,37 @@ implementations disagree on those byte values.
 
 Pass criteria: keyboard lighting turns off after approximately one minute.
 
+### T11a — Custom RGB capability and backup
+
+1. Connect PID `0x8009`, then repeat with PID `0x800a`.
+2. Confirm diagnostics show USB ID and `0xFF67 framed commands`.
+3. Click **Read and back up current layout**.
+4. Record whether reading changes any keyboard lighting (it must not).
+
+Pass criteria: the current table loads without a write and Restore becomes
+available only after a valid backup exists.
+
+### T11b — LED mapping and restoration
+
+1. Save the current state using T11a.
+2. Clear the editor, paint only Esc red, apply, and verify only Esc changes.
+3. Repeat with Q, Space, ISO key, arrows, Delete, End, Page Up, and Page Down.
+4. Test WASD and arrow group selection.
+5. Click **Restore previous lighting**.
+
+Pass criteria: every visual key maps to the expected physical LED and the
+previous effect and colors return. Record layout/locale and any mismatched ID.
+
+### T11c — Custom RGB persistence and write discipline
+
+1. Apply one static custom layout.
+2. Reload the page without applying again, then reconnect and power-cycle.
+3. Confirm painting, undo/redo, presets, and local profile changes cause no HID
+   traffic until Apply is pressed.
+
+Pass criteria: persistence behavior is documented and there are no background
+or rapid repeated writes.
+
 ### T12 — Shared operation safety
 
 1. Start a large animated image upload.

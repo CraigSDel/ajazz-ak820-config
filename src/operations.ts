@@ -37,6 +37,25 @@ const CHUNK_ACK_TIMEOUT_MS = 300;
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+async function sendImageChunks(
+  ctrl: DeviceController,
+  chunks: readonly Uint8Array[],
+  onProgress: ProgressCallback,
+): Promise<void> {
+  for (let i = 0; i < chunks.length; i++) {
+    await ctrl.sendReport({ reportId: 0, bytes: chunks[i] });
+    const acknowledgement = await ctrl.waitForDataInputReport(CHUNK_ACK_TIMEOUT_MS);
+    if (!acknowledgement) {
+      throw new DeviceFailure({
+        kind: "ack-timeout",
+        chunkIndex: i,
+        totalChunks: chunks.length,
+      });
+    }
+    onProgress((i + 1) / chunks.length);
+  }
+}
+
 export async function syncTime(ctrl: DeviceController, date: Date): Promise<void> {
   // buildTimeSyncReports throws on invalid date.
   const [start, preamble, data, save] = buildTimeSyncReports(date);
@@ -117,11 +136,7 @@ export async function uploadStaticImage(
   await ctrl.sendFeatureReport(buildImageCfgReport(chunks.length));
   await ctrl.receiveFeatureReport(0);
 
-  for (let i = 0; i < chunks.length; i++) {
-    await ctrl.sendReport({ reportId: 0, bytes: chunks[i] });
-    await ctrl.waitForDataInputReport(CHUNK_ACK_TIMEOUT_MS);
-    onProgress((i + 1) / chunks.length);
-  }
+  await sendImageChunks(ctrl, chunks, onProgress);
 
   await sleep(INTER_PACKET_DELAY_MS);
   await ctrl.sendFeatureReport(buildImageSaveReport());
@@ -156,11 +171,7 @@ export async function uploadAnimatedImage(
   await ctrl.sendFeatureReport(buildAnimatedCfgReport(chunks.length));
   await ctrl.receiveFeatureReport(0);
 
-  for (let i = 0; i < chunks.length; i++) {
-    await ctrl.sendReport({ reportId: 0, bytes: chunks[i] });
-    await ctrl.waitForDataInputReport(CHUNK_ACK_TIMEOUT_MS);
-    onProgress((i + 1) / chunks.length);
-  }
+  await sendImageChunks(ctrl, chunks, onProgress);
 
   await sleep(INTER_PACKET_DELAY_MS);
   await ctrl.sendFeatureReport(buildAnimatedSaveReport());

@@ -1,9 +1,16 @@
 import type { ReportMessage } from "../protocol/types";
+import type { CommandRequest } from "../protocol/custom-lighting";
 
 export type SentReport = ReportMessage & { kind: "feature" | "output" };
+export type DeviceIdentity = {
+  vendorId: number;
+  productId: number;
+  productName: string;
+};
 
 export interface DeviceController {
   isConnected(): boolean;
+  getIdentity(): DeviceIdentity | null;
   connect(): Promise<void>;
   disconnect(): Promise<void>;
   sendFeatureReport(report: ReportMessage): Promise<void>;
@@ -21,8 +28,13 @@ export interface DeviceController {
    * per-chunk ACK during image upload — the AK820 Pro firmware drops chunks
    * if the host doesn't read each ACK before sending the next one.
    * Resolves with the report data, or `null` if no report arrives within
-   * `timeoutMs`. The timeout case is non-fatal — callers should continue.
+   * `timeoutMs`. A timeout means the firmware may have dropped the chunk;
+   * upload callers must abort instead of continuing with corrupt data.
    */
   waitForDataInputReport(timeoutMs: number): Promise<DataView | null>;
+  /** Whether the keyboard exposes the official 0xFF67 framed-command interface. */
+  supportsCommandTransport(): boolean;
+  /** Exchange all chunks of an official framed command and return its content bytes. */
+  exchangeCommand(request: CommandRequest): Promise<Uint8Array>;
   onDisconnect(handler: () => void): () => void;
 }

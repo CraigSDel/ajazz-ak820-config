@@ -9,14 +9,24 @@ device protocol. It is not affiliated with or endorsed by AJAZZ. Time and image
 operations have protocol coverage, while the newer lighting features still need
 broader validation on physical keyboards and firmware variants.
 
+## Use at your own risk
+
+This tool sends reverse-engineered commands directly to the keyboard and is
+provided without a warranty. Differences between models or firmware revisions
+could cause settings loss, a failed transfer, or require a keyboard reset. Keep
+the official AJAZZ driver available as a recovery option, use a stable wired
+connection, and do not unplug or switch modes while an operation is running.
+You are responsible for deciding whether to use the tool with your hardware.
+
 ## Requirements
 
 - **Browser**: Chrome / Edge / Opera / Arc (any Chromium ≥ 89). Safari and Firefox are not supported — they do not implement WebHID.
 - **Connection**: USB-C in **wired** mode. The keyboard's vendor HID interface (used for time sync and image upload) is only exposed over USB; Bluetooth and the 2.4 GHz dongle do not expose it.
 - **OS**: any — Chrome's WebHID works the same on macOS, Linux, and Windows.
 
-The device picker currently recognizes USB vendor ID `0x0c45` and product IDs
-`0x8009` (AK820 Pro wired mode) and `0xfefe` (an unverified sibling/dongle ID).
+The device picker currently recognizes USB vendor ID `0x0c45` and the wired
+product IDs `0x8009` (AK820 family) and `0x800a` (AK820 Pro family), as listed
+by the official AJAZZ online driver.
 Other AK820 variants, layouts, and firmware revisions may use different HID
 interfaces and are not currently supported.
 
@@ -34,22 +44,33 @@ Implemented:
 
 - System time sync to the TFT clock.
 - Static image upload — PNG / JPEG / WebP.
+- Multi-image sequences — choose several still or animated files and upload
+  them as one ordered animation (up to 255 total frames).
 - Animated GIF and WebP upload — frame timing retained; GIF disposal methods 0/1/2/3 honored.
 
 Also implemented:
 
 - RGB lighting effects, color, brightness, speed, rainbow, and direction.
-- A responsive virtual AK820 Pro keyboard that previews the selected whole-board lighting.
+- Corrected effect names and mode-specific controls derived from the official
+  AJAZZ catalogue, with an explicitly approximate interactive preview.
+- Experimental custom static per-key RGB with capability detection, backup and
+  restore, gradients, presets, undo/redo, local profiles, and JSON import/export.
 - Lighting sleep timeout.
 - Shared device-operation locking across time, image, and lighting actions.
 
 Not implemented: key remapping and macro recording; their device protocols
 still require hardware capture and safe restoration research.
 
+Custom RGB requires the keyboard to expose the official `0xff67` framed-command
+HID interface. The editor remains read/write disabled when that interface is
+not detected. The AK820 configuration does not advertise firmware GIF lighting,
+so the editor intentionally creates static layouts only; it does not repeatedly
+write frames to imitate an animation.
+
 ## Limits
 
 - Static image: PNG / JPEG / WebP, up to **10 MB**.
-- Animated GIF or WebP: up to **20 MB**, max **2048 × 2048 px**, max **256 frames**. GIF decoded patch pixels are limited to 50 M.
+- Animated GIF or WebP: up to **20 MB**, max **2048 × 2048 px**, max **255 frames**. GIF decoded patch pixels are limited to 50 M.
 - All images are aspect-fitted to 128 × 128. Opaque images use dominant-color padding; images containing transparency use black because RGB565 has no alpha channel.
 
 ## Security
@@ -160,6 +181,9 @@ Protocol details derived from these reverse-engineering projects:
 - [aar-rafi/aks075-linux](https://github.com/aar-rafi/aks075-linux) — image upload, AKS075 sibling keyboard.
 - [TaxMachine/ajazz-keyboard-software-linux](https://github.com/TaxMachine/ajazz-keyboard-software-linux) — AK820 Pro cross-check.
 - [Beattrey/ajazz-ak820-config](https://github.com/Beattrey/ajazz-ak820-config) — reference implementation.
+- [AJAZZ online driver](https://ajazz.driveall.cn/) — official WebHID bundle
+  used to cross-check AK820-family TFT configuration, frame payloads, and
+  device-reported limits.
 
 ## License
 

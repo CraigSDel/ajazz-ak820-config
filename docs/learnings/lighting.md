@@ -18,9 +18,11 @@ must be no read after MODE_DATA. The rationale and transport rule live in
 
 ## Configuration semantics
 
-The verified packet controls a whole-keyboard effect, color, brightness, speed,
-rainbow flag, and supported direction. It does not expose a verified per-key
-color map, so clickable per-key RGB editing would be misleading.
+The legacy packet controls a whole-keyboard effect, color, brightness, speed,
+palette flag, and supported direction. The current official online driver also
+documents a separate framed-command path for a static per-key color map. The
+app keeps these transports separate and exposes custom editing only when the
+additional `0xff67` HID interface is present.
 
 - Brightness and speed are levels 0 through 5.
 - Off is transmitted as SingleOn with brightness and speed zero.
@@ -28,6 +30,35 @@ color map, so clickable per-key RGB editing would be misleading.
 - Direction is shown only for effects with known direction support.
 - Reference sources disagree on numeric Up/Down mapping; physical confirmation
   remains required.
+
+## Official effect metadata
+
+The official catalogue exposes modes 1 through 19 plus custom mode 128. It
+also declares whether each mode supports speed, a chosen color, and direction.
+The UI uses this metadata instead of displaying every control for every mode.
+Modes 10, 11, 12, 16, and 18 are directional; modes 6 and 8 use fixed palettes.
+Effect names are descriptive English labels rather than ambiguous literal
+translations, while protocol IDs remain unchanged.
+
+## Static per-key custom RGB
+
+The official command implementation uses:
+
+- usage page `0xff67`;
+- request header `0xAA`, response header `0x55`;
+- GET effect `0x13`, GET custom table `0x14`;
+- SET effect `0x23`, SET custom table `0x24`;
+- custom mode `0x80`;
+- 128 entries of `[LED ID, red, green, blue]` (512 bytes total).
+
+The editor reads both the current effect and custom table before applying. That
+snapshot can be restored during the same page session. Writes occur only after
+an explicit Apply action and risk acknowledgement; painting the browser preview
+does not communicate with the keyboard.
+
+The AK820/820PRO official configuration does not enable GIF lighting. Host-side
+rapid writes are deliberately not used as a substitute because persistence and
+write endurance have not been established.
 
 ## Sleep transaction
 
@@ -45,9 +76,24 @@ The unnumbered data packet must not receive a GET-feature handshake.
 
 ## Preview
 
-The virtual keyboard previews whole-board behavior only. It reacts to color,
-brightness, Off, Rainbow, Breath, and representative animation classes without
-claiming unverified per-key programmability.
+One virtual keyboard switches between effect preview and per-key editing. It
+uses the official ISO LED map in both modes so geometry stays stable. Effect
+simulations identify themselves as approximate; reactive modes wait for a key
+press and propagate from that origin. Per-key mode previews the exact static RGB
+table that will be encoded.
+
+The keyboard is a single persistent render tree. Built-in mode makes its keys
+animation targets and reactive-preview triggers; per-key mode makes those same
+elements focusable paint controls with selection state. Keeping the same nodes
+prevents changes in height, scroll position, focus geometry, and perceived
+hardware identity when the mode changes.
+
+Effect selection uses the same metadata as the protocol and preview, so its
+visual tile, label, description, supported controls, and transmitted mode cannot
+drift independently. The effect browser is presentation only: selecting an
+option changes the browser preview, while the explicit Apply action remains the
+only built-in-effect hardware write. Common color swatches update the same RGB
+state as the full color input and do not introduce a second color model.
 
 ## What failed
 
@@ -61,5 +107,7 @@ handshaking, not additional delay or retry logic.
 - Confirm Up/Down direction.
 - Confirm persistence across reconnect and power cycle.
 - Confirm sleep timing and wake behavior.
+- Validate custom mode and restore on both PIDs `0x8009` and `0x800a`.
+- Verify the ISO LED map and capture any ANSI-layout differences.
 
 The full checklist is in [Validation](validation.md#hardware-release-checklist).

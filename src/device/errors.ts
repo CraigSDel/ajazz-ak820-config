@@ -4,6 +4,7 @@ export type DeviceError =
   | { kind: "device-disconnected" }
   | { kind: "operation-in-progress"; operation: string }
   | { kind: "transfer-failed"; reportId: number; cause: unknown }
+  | { kind: "ack-timeout"; chunkIndex: number; totalChunks: number }
   | { kind: "validation"; message: string };
 
 export class DeviceFailure extends Error {
@@ -27,6 +28,8 @@ function describe(e: DeviceError): string {
       return `Cannot start while ${e.operation} is in progress.`;
     case "transfer-failed":
       return `Transfer failed for report 0x${e.reportId.toString(16)}.`;
+    case "ack-timeout":
+      return `Keyboard did not acknowledge image chunk ${e.chunkIndex + 1} of ${e.totalChunks}. The upload was stopped.`;
     case "validation":
       return e.message;
   }

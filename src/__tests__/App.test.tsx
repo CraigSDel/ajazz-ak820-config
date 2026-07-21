@@ -17,6 +17,13 @@ function renderConfigurator() {
 }
 
 describe("Configurator workspace", () => {
+  test("shows the hardware risk warning", () => {
+    const view = renderConfigurator();
+    expect(
+      view.getByRole("complementary", { name: "Important safety notice" }).textContent,
+    ).toMatch(/use at your own risk/i);
+  });
+
   test("opens on lighting and reveals one task workspace at a time", () => {
     const view = renderConfigurator();
 

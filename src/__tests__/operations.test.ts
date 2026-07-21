@@ -131,6 +131,18 @@ describe("uploadStaticImage", () => {
     await ctrl.connect();
     await expect(uploadStaticImage(ctrl, new Uint8Array(100), () => {})).rejects.toThrow(/32768/);
   });
+
+  test("aborts before SAVE when a data chunk is not acknowledged", async () => {
+    const ctrl = new MockDeviceController({ dataAckResponds: false });
+    await ctrl.connect();
+
+    await expect(
+      uploadStaticImage(ctrl, new Uint8Array(RGB565_FRAME_BYTES), () => {}),
+    ).rejects.toMatchObject({ error: { kind: "ack-timeout", chunkIndex: 0 } });
+
+    expect(ctrl.sent).toHaveLength(3);
+    expect(ctrl.sent.at(-1)?.kind).toBe("output");
+  });
 });
 
 describe("uploadAnimatedImage (AKS075 path)", () => {

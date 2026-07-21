@@ -22,6 +22,7 @@ describe("ImagePanel", () => {
     const { container } = renderPanel(ctrl);
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     expect(input.disabled).toBe(true);
+    expect(input.multiple).toBe(true);
   });
 
   test("upload button is disabled when no file is prepared", () => {

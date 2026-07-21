@@ -2,12 +2,14 @@
 
 These are the concrete byte-level layouts and transport details for the AJAZZ
 AK820 Pro keyboard's vendor HID protocol (time sync + 128×128 RGB565 TFT
-image/GIF upload), extracted from three reference implementations.
+image/GIF upload), extracted from three reference implementations and the
+official AJAZZ online driver's public web bundle.
 
-Every value below is verified against a specific file:line in one of the three
-source repositories. Where source disagrees with source, the disagreement is
-documented in the cross-check section so downstream tasks can decide which
-variant to implement and test against real hardware.
+Repository-derived values below are verified against a specific file and line.
+Online-driver findings identify the dated, content-hashed bundle inspected.
+Where sources disagree, the disagreement is documented in the cross-check
+section so downstream tasks can decide which variant to implement and test
+against real hardware.
 
 ## Sources
 
@@ -24,6 +26,14 @@ variant to implement and test against real hardware.
   — cross-check for AK820 Pro control reports. Files used:
   `src/keyboards/ak820pro.cpp`, `src/keyboards/ak820pro.hpp`,
   `src/keyboards/keyboarddefs.hpp`.
+- **AJAZZ online driver** — official WebHID application at
+  <https://ajazz.driveall.cn/>. Bundle inspected on 2026-07-21:
+  `assets/layout-classic-ZwpimY8M.js` (site response last-modified
+  2026-07-01). It contains direct AK820-family device configurations, TFT UI
+  state, image decoding, RGB565 conversion, device-reported frame limits, and
+  the generic `SET_TFT_USER_ANIMATION` transport. Because the deployed asset is
+  minified and may be replaced, retain the bundle hash and inspection date when
+  comparing future behavior.
 
 ## Device identification
 
@@ -769,6 +779,32 @@ down = 2. The TypeScript implementation follows gohv because it contains
 explicit mode-aware direction handling and is the newer direct AK820 Pro
 implementation. Scrolling up/down must be verified on physical hardware before
 the lighting interface is considered complete.
+
+### Official framed custom-RGB transport
+
+The July 2026 AJAZZ online-driver bundle adds a separate command interface on
+usage page `0xFF67`. This is not the legacy feature-report transaction above.
+Reports use an 8-byte header followed by descriptor-sized payload chunks:
+
+| Offset | Field |
+|---|---|
+| 0 | request `0xAA` / response `0x55` |
+| 1 | command |
+| 2 | payload length in this packet |
+| 3–4 | little-endian content address |
+| 5 | reserved |
+| 6 | final-packet flag |
+| 7 | reserved |
+
+Custom RGB commands are GET effect `0x13`, GET table `0x14`, SET effect `0x23`,
+and SET table `0x24`. The custom table is 512 bytes: 128 four-byte records
+`[LED ID, R, G, B]`. Setting custom mode uses the normal 16-byte LED-effect
+content with mode `0x80`, driver byte 4 = `0xFF`, brightness at byte 9, and
+`0xAA 0x55` at bytes 14–15.
+
+The web app discovers report size from the HID descriptor, requires a matching
+response command after every packet (matching the official driver's default), and does not expose the writer if
+the `0xFF67` interface is missing.
 
 ## Known unknowns (verify against real hardware before shipping)
 

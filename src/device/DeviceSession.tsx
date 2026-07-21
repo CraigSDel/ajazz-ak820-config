@@ -11,7 +11,12 @@ import {
 import { DeviceFailure } from "./errors";
 import type { DeviceController } from "./types";
 
-export type DeviceOperationName = "time sync" | "image upload" | "lighting" | "lighting sleep";
+export type DeviceOperationName =
+  | "time sync"
+  | "image upload"
+  | "lighting"
+  | "lighting sleep"
+  | "custom RGB";
 export type DeviceHealth = "disconnected" | "checking" | "responsive" | "unresponsive";
 
 const HEALTH_CHECK_INTERVAL_MS = 5_000;

@@ -37,9 +37,16 @@ export function Configurator() {
   return (
     <div className="app">
       <header className="app-header">
-        <div>
-          <p className="eyebrow">Keyboard control</p>
-          <h1>AJAZZ AK820 Pro</h1>
+        <div className="brand-lockup">
+          <span className="brand-mark" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </span>
+          <div>
+            <p className="eyebrow">Keyboard control</p>
+            <h1>AJAZZ AK820 Pro</h1>
+          </div>
         </div>
         <button
           type="button"
@@ -65,6 +72,7 @@ export function Configurator() {
               aria-current={workspace === item.id ? "page" : undefined}
               onClick={() => setWorkspace(item.id)}
             >
+              <WorkspaceIcon workspace={item.id} />
               <strong>{item.label}</strong>
               <small>{item.description}</small>
             </button>
@@ -90,7 +98,36 @@ export function Configurator() {
           )}
         </main>
       </div>
+
+      <aside className="risk-notice" aria-label="Important safety notice">
+        <span className="notice-icon" aria-hidden="true">
+          !
+        </span>
+        <p>
+          <strong>Community hardware tool — use at your own risk</strong>
+          <span>
+            Sends reverse-engineered commands directly to your keyboard. Keep the official driver
+            available and do not disconnect during an operation.
+          </span>
+        </p>
+      </aside>
     </div>
+  );
+}
+
+function WorkspaceIcon({ workspace }: { workspace: Workspace }) {
+  return (
+    <svg className="workspace-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+      {workspace === "lighting" && (
+        <path d="M9 18h6M10 22h4M8.2 14.7A6 6 0 1 1 15.8 14.7C14.7 15.5 14 16.4 14 18h-4c0-1.6-.7-2.5-1.8-3.3Z" />
+      )}
+      {workspace === "display" && (
+        <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v10a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 15.5v-10ZM9 21h6M12 17v4" />
+      )}
+      {workspace === "device" && (
+        <path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" />
+      )}
+    </svg>
   );
 }
 

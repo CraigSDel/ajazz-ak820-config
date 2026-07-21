@@ -4,17 +4,21 @@
 export const AJAZZ_VENDOR_ID = 0x0c45;
 
 /**
- * Known Product IDs that the AK820 Pro may present as.
- * 0x8009 — wired USB, confirmed across all three reference repos.
- * 0xFEFE — 2.4 GHz dongle PID for the sibling AKS075; unverified for AK820 Pro,
- *          included so dongle mode users have a chance of being matched.
+ * Confirmed wired Product IDs used by the official AJAZZ online driver.
+ * 0x8009 — AK820 family.
+ * 0x800A — AK820 Pro family.
+ * Do not add sibling or receiver IDs speculatively: matching a different
+ * keyboard could send it incompatible vendor commands.
  */
-export const AK820_PRO_PRODUCT_IDS: readonly number[] = [0x8009, 0xfefe] as const;
+export const AK820_PRO_PRODUCT_IDS: readonly number[] = [0x8009, 0x800a] as const;
 
 /** TFT screen dimensions. */
 export const SCREEN_WIDTH = 128;
 export const SCREEN_HEIGHT = 128;
 export const RGB565_FRAME_BYTES = SCREEN_WIDTH * SCREEN_HEIGHT * 2;
+
+/** Maximum frame count representable by the legacy TFT upload header. */
+export const MAX_TFT_FRAMES = 255;
 
 /**
  * Image data chunk size for OUT transfers on the data interface.

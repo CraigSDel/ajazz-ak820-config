@@ -1,4 +1,4 @@
-import { type CSSProperties, useMemo, useState } from "react";
+import { type CSSProperties, useMemo, useRef, useState } from "react";
 import { useDeviceSession } from "../device/DeviceSession";
 import { setLighting, setLightingSleepTime } from "../operations";
 import {
@@ -8,29 +8,9 @@ import {
   LightingMode,
 } from "../protocol/lighting";
 import { LightingSleepTime, type LightingSleepTime as SleepTime } from "../protocol/lighting-sleep";
-
-const MODE_OPTIONS = [
-  [LightingMode.Off, "Off"],
-  [LightingMode.Static, "Static"],
-  [LightingMode.SingleOn, "Single on"],
-  [LightingMode.SingleOff, "Single off"],
-  [LightingMode.Glittering, "Glittering"],
-  [LightingMode.Falling, "Falling"],
-  [LightingMode.Colourful, "Colourful"],
-  [LightingMode.Breath, "Breath"],
-  [LightingMode.Spectrum, "Spectrum"],
-  [LightingMode.Outward, "Outward"],
-  [LightingMode.Scrolling, "Scrolling"],
-  [LightingMode.Rolling, "Rolling"],
-  [LightingMode.Rotating, "Rotating"],
-  [LightingMode.Explode, "Explode"],
-  [LightingMode.Launch, "Launch"],
-  [LightingMode.Ripples, "Ripples"],
-  [LightingMode.Flowing, "Flowing"],
-  [LightingMode.Pulsating, "Pulsating"],
-  [LightingMode.Tilt, "Tilt"],
-  [LightingMode.Shuttle, "Shuttle"],
-] as const;
+import { effectForMode, LIGHTING_EFFECTS } from "../lighting/effects";
+import { useCustomLightingEditor } from "./CustomLightingEditor";
+import { LightingKeyboard, type LightingKeyboardProps } from "./LightingKeyboard";
 
 const DEFAULT_CONFIG: LightingConfig = {
   mode: LightingMode.Static,
@@ -41,119 +21,32 @@ const DEFAULT_CONFIG: LightingConfig = {
   direction: LightingDirection.Left,
 };
 
-const KEY_ROWS = [
-  [
-    ["Esc"],
-    ["gap-after-esc", 0.75],
-    ["F1"],
-    ["F2"],
-    ["F3"],
-    ["F4"],
-    ["gap-after-f4", 0.5],
-    ["F5"],
-    ["F6"],
-    ["F7"],
-    ["F8"],
-    ["gap-after-f8", 0.5],
-    ["F9"],
-    ["F10"],
-    ["F11"],
-    ["F12"],
-    ["gap-before-delete", 1],
-    ["Del"],
-  ],
-  [
-    ["`"],
-    ["1"],
-    ["2"],
-    ["3"],
-    ["4"],
-    ["5"],
-    ["6"],
-    ["7"],
-    ["8"],
-    ["9"],
-    ["0"],
-    ["-"],
-    ["="],
-    ["Back", 2],
-    ["gap-before-pgup", 0.75],
-    ["PgUp"],
-  ],
-  [
-    ["Tab", 1.5],
-    ["Q"],
-    ["W"],
-    ["E"],
-    ["R"],
-    ["T"],
-    ["Y"],
-    ["U"],
-    ["I"],
-    ["O"],
-    ["P"],
-    ["["],
-    ["]"],
-    ["\\", 1.5],
-    ["gap-before-pgdn", 0.75],
-    ["PgDn"],
-  ],
-  [
-    ["Caps", 1.75],
-    ["A"],
-    ["S"],
-    ["D"],
-    ["F"],
-    ["G"],
-    ["H"],
-    ["J"],
-    ["K"],
-    ["L"],
-    [";"],
-    ["'"],
-    ["Enter", 2.25],
-    ["gap-before-home", 0.75],
-    ["Home"],
-  ],
-  [
-    ["Shift", 2.25],
-    ["Z"],
-    ["X"],
-    ["C"],
-    ["V"],
-    ["B"],
-    ["N"],
-    ["M"],
-    [","],
-    ["."],
-    ["/"],
-    ["Shift", 1.75],
-    ["gap-before-up", 0.75],
-    ["Up"],
-    ["End"],
-  ],
-  [
-    ["Ctrl", 1.25],
-    ["Win", 1.25],
-    ["Alt", 1.25],
-    ["Space", 6.25],
-    ["Alt Gr", 1.25],
-    ["Fn", 1.25],
-    ["R Ctrl", 1.25],
-    ["Left"],
-    ["Down"],
-    ["Right"],
-  ],
-] as const;
+const COLOR_PRESETS = [
+  "#ff3b30",
+  "#ff9500",
+  "#ffd60a",
+  "#34c759",
+  "#00c7be",
+  "#0a84ff",
+  "#5e5ce6",
+  "#bf5af2",
+];
 
 export function LightingPanel() {
   const { controller, connected, activeOperation, runOperation } = useDeviceSession();
   const [config, setConfig] = useState<LightingConfig>(DEFAULT_CONFIG);
   const [sleepTime, setSleepTime] = useState<SleepTime>(LightingSleepTime.Never);
   const [status, setStatus] = useState<string | null>(null);
+  const [editingMode, setEditingMode] = useState<"effects" | "per-key">("effects");
   const directionOptions = useMemo(() => directionsForMode(config.mode), [config.mode]);
+  const selectedEffect = effectForMode(config.mode);
+  const customEditor = useCustomLightingEditor();
   const busy = activeOperation !== null;
   const applyingLighting = activeOperation === "lighting";
+  const keyboardProps: LightingKeyboardProps =
+    editingMode === "effects"
+      ? { mode: "effect", config }
+      : { mode: "per-key", ...customEditor.keyboard };
 
   const updateConfig = <K extends keyof LightingConfig>(key: K, value: LightingConfig[K]) =>
     setConfig((current) => ({ ...current, [key]: value }));
@@ -189,175 +82,215 @@ export function LightingPanel() {
 
   return (
     <section className="panel lighting-panel">
-      <KeyboardPreview config={config} />
-      <div className="lighting-editor">
-        <fieldset className="lighting-controls" disabled={busy}>
-          <label className="control-effect">
-            Effect
-            <select
-              aria-label="Lighting effect"
-              value={config.mode}
-              onChange={(event) => changeMode(Number(event.target.value) as LightingMode)}
-            >
-              {MODE_OPTIONS.map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="control-color">
-            Color
-            <input
-              aria-label="Lighting color"
-              type="color"
-              value={rgbToHex(config.color)}
-              onChange={(event) => updateConfig("color", hexToRgb(event.target.value))}
-            />
-          </label>
-          <label className="checkbox-label control-rainbow">
-            <input
-              type="checkbox"
-              checked={config.rainbow}
-              onChange={(event) => updateConfig("rainbow", event.target.checked)}
-            />
-            Rainbow
-          </label>
-          <LevelSelect
-            label="Brightness"
-            value={config.brightness}
-            onChange={(value) => updateConfig("brightness", value)}
-          />
-          <LevelSelect
-            label="Speed"
-            value={config.speed}
-            onChange={(value) => updateConfig("speed", value)}
-          />
-          {directionOptions.length > 0 && (
-            <label>
-              Direction
-              <select
-                aria-label="Direction"
-                value={config.direction}
-                onChange={(event) =>
-                  updateConfig("direction", Number(event.target.value) as LightingDirection)
-                }
-              >
-                {directionOptions.map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
+      <div className="lighting-page-toolbar">
+        <div>
+          <p className="eyebrow">Lighting workspace</p>
+          <p className="lighting-page-copy">
+            Preview an effect or paint an exact static layout on the same keyboard.
+          </p>
+        </div>
+        <fieldset className="lighting-mode-switch">
+          <legend className="visually-hidden">Lighting editing mode</legend>
           <button
             type="button"
-            className="primary-action"
-            disabled={!connected || busy}
-            aria-busy={applyingLighting}
-            onClick={applyLighting}
+            className={editingMode === "effects" ? "is-active" : ""}
+            aria-pressed={editingMode === "effects"}
+            onClick={() => setEditingMode("effects")}
           >
-            {applyingLighting ? "Applying lighting…" : "Apply lighting"}
+            Effects
+          </button>
+          <button
+            type="button"
+            className={editingMode === "per-key" ? "is-active" : ""}
+            aria-pressed={editingMode === "per-key"}
+            onClick={() => setEditingMode("per-key")}
+          >
+            Per-key
           </button>
         </fieldset>
-        {status && (
-          <p className="lighting-feedback" role="status" aria-live="polite">
-            {status}
-          </p>
-        )}
-
-        <div className="subsection sleep-section">
-          <h3>Sleep timeout</h3>
-          <label>
-            Turn lighting off after
-            <select
-              aria-label="Lighting sleep timeout"
-              value={sleepTime}
-              disabled={busy}
-              onChange={(event) => setSleepTime(Number(event.target.value) as SleepTime)}
-            >
-              <option value={LightingSleepTime.Never}>Never</option>
-              <option value={LightingSleepTime.OneMinute}>1 minute</option>
-              <option value={LightingSleepTime.FiveMinutes}>5 minutes</option>
-              <option value={LightingSleepTime.ThirtyMinutes}>30 minutes</option>
-            </select>
-          </label>
-          <button type="button" disabled={!connected || busy} onClick={applySleep}>
-            Apply sleep timeout
-          </button>
-        </div>
       </div>
+      <LightingKeyboard {...keyboardProps} />
+      <p className="keyboard-context">
+        {editingMode === "effects" ? (
+          <>
+            Approximate browser preview
+            {selectedEffect.reactive ? " · press preview keys to trigger the effect" : ""}
+            {" · changes are sent only when you apply them."}
+          </>
+        ) : (
+          "Click or drag to paint · use arrow keys to move · apply when your layout is ready."
+        )}
+      </p>
+      {editingMode === "effects" ? (
+        <div className="lighting-editor">
+          <fieldset className="lighting-controls" disabled={busy}>
+            <EffectPicker selected={selectedEffect} onChange={changeMode} />
+            {selectedEffect.supportsColor && (
+              <fieldset className="control-color">
+                <legend>Color</legend>
+                <div className="color-picker-control">
+                  <input
+                    className="lighting-color-input"
+                    aria-label="Lighting color"
+                    type="color"
+                    value={rgbToHex(config.color)}
+                    onChange={(event) => updateConfig("color", hexToRgb(event.target.value))}
+                  />
+                  <span>
+                    <strong>{rgbToHex(config.color).toUpperCase()}</strong>
+                    <small>Custom color</small>
+                  </span>
+                </div>
+                <fieldset className="color-presets">
+                  <legend className="visually-hidden">Color presets</legend>
+                  {COLOR_PRESETS.map((color) => (
+                    <button
+                      type="button"
+                      className={rgbToHex(config.color) === color ? "is-active" : ""}
+                      style={{ "--swatch-color": color } as CSSProperties}
+                      aria-label={`Use color ${color}`}
+                      aria-pressed={rgbToHex(config.color) === color}
+                      onClick={() => updateConfig("color", hexToRgb(color))}
+                      key={color}
+                    />
+                  ))}
+                </fieldset>
+              </fieldset>
+            )}
+            {selectedEffect.supportsPalette && (
+              <label className="checkbox-label control-rainbow">
+                <input
+                  type="checkbox"
+                  checked={config.rainbow}
+                  onChange={(event) => updateConfig("rainbow", event.target.checked)}
+                />
+                Built-in multicolor palette
+              </label>
+            )}
+            <LevelSelect
+              label="Brightness"
+              value={config.brightness}
+              onChange={(value) => updateConfig("brightness", value)}
+            />
+            {selectedEffect.supportsSpeed && (
+              <LevelSelect
+                label="Speed"
+                value={config.speed}
+                onChange={(value) => updateConfig("speed", value)}
+              />
+            )}
+            {directionOptions.length > 0 && (
+              <label>
+                Direction
+                <select
+                  aria-label="Direction"
+                  value={config.direction}
+                  onChange={(event) =>
+                    updateConfig("direction", Number(event.target.value) as LightingDirection)
+                  }
+                >
+                  {directionOptions.map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <button
+              type="button"
+              className="primary-action"
+              disabled={!connected || busy}
+              aria-busy={applyingLighting}
+              onClick={applyLighting}
+            >
+              {applyingLighting ? "Applying lighting…" : "Apply lighting"}
+            </button>
+          </fieldset>
+          {status && (
+            <p className="lighting-feedback" role="status" aria-live="polite">
+              {status}
+            </p>
+          )}
+
+          <div className="subsection sleep-section">
+            <h3>Sleep timeout</h3>
+            <label>
+              Turn lighting off after
+              <select
+                aria-label="Lighting sleep timeout"
+                value={sleepTime}
+                disabled={busy}
+                onChange={(event) => setSleepTime(Number(event.target.value) as SleepTime)}
+              >
+                <option value={LightingSleepTime.Never}>Never</option>
+                <option value={LightingSleepTime.OneMinute}>1 minute</option>
+                <option value={LightingSleepTime.FiveMinutes}>5 minutes</option>
+                <option value={LightingSleepTime.ThirtyMinutes}>30 minutes</option>
+              </select>
+            </label>
+            <button type="button" disabled={!connected || busy} onClick={applySleep}>
+              Apply sleep timeout
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {editingMode === "per-key" ? customEditor.controls : null}
     </section>
   );
 }
 
-function KeyboardPreview({ config }: { config: LightingConfig }) {
-  const color = rgbToHex(config.color);
-  const effectClass = previewEffectClass(config.mode);
-  const reverse =
-    config.direction === LightingDirection.Right || config.direction === LightingDirection.Down;
-  const previewStyle = {
-    "--key-light": color,
-    "--key-brightness": config.mode === LightingMode.Off ? 0 : config.brightness / 5,
-    "--effect-speed": `${1.8 - config.speed * 0.22}s`,
-  } as CSSProperties;
+function EffectPicker({
+  selected,
+  onChange,
+}: {
+  selected: (typeof LIGHTING_EFFECTS)[number];
+  onChange(mode: LightingMode): void;
+}) {
+  const picker = useRef<HTMLDetailsElement>(null);
 
   return (
-    <div
-      role="img"
-      className={`keyboard-preview ${effectClass}${config.rainbow ? " is-rainbow" : ""}${reverse ? " is-reversed" : ""}`}
-      style={previewStyle}
-      aria-label={`Virtual AK820 Pro lighting preview, ${MODE_OPTIONS.find(([mode]) => mode === config.mode)?.[1] ?? "unknown"} effect, ${color}`}
-    >
-      <div className="keyboard-preview-header">
-        <span>AK820 PRO</span>
-        <span className="keyboard-screen">RGB</span>
-        <span className="keyboard-knob" aria-hidden="true" />
-      </div>
-      <div className="keyboard-keys" aria-hidden="true">
-        {KEY_ROWS.map((row, rowIndex) => (
-          <div className="keyboard-row" key={row.map(([label]) => label).join("-")}>
-            {row.map(([label, width = 1], columnIndex) => (
-              <span
-                className={label.startsWith("gap-") ? "keyboard-spacer" : "keyboard-key"}
-                style={
-                  {
-                    flexGrow: width,
-                    "--key-index": columnIndex,
-                    "--row-index": rowIndex,
-                    "--distance": Math.abs(columnIndex - 6.5) + Math.abs(rowIndex - 2.5),
-                  } as CSSProperties
-                }
-                key={`${label}-${width}`}
-              >
-                {label.startsWith("gap-") ? "" : label}
+    <fieldset className="control-effect">
+      <legend>Effect</legend>
+      <details className="effect-picker" ref={picker}>
+        <summary aria-label="Lighting effect">
+          <EffectGlyph preview={selected.preview} />
+          <span>
+            <strong>{selected.name}</strong>
+            <small>{selected.description}</small>
+          </span>
+          <span className="effect-picker-chevron" aria-hidden="true" />
+        </summary>
+        <fieldset className="effect-options">
+          <legend className="visually-hidden">Available lighting effects</legend>
+          {LIGHTING_EFFECTS.map((effect) => (
+            <button
+              type="button"
+              className={
+                effect.mode === selected.mode ? "effect-option is-active" : "effect-option"
+              }
+              aria-pressed={effect.mode === selected.mode}
+              onClick={() => {
+                onChange(effect.mode);
+                if (picker.current) picker.current.open = false;
+              }}
+              key={effect.mode}
+            >
+              <EffectGlyph preview={effect.preview} />
+              <span>
+                <strong>{effect.name}</strong>
+                <small>{effect.description}</small>
               </span>
-            ))}
-          </div>
-        ))}
-      </div>
-      <p>Whole-keyboard preview · changes are sent only when you press Apply lighting.</p>
-    </div>
+            </button>
+          ))}
+        </fieldset>
+      </details>
+    </fieldset>
   );
 }
 
-function previewEffectClass(mode: LightingMode): string {
-  if (mode === LightingMode.Off || mode === LightingMode.Static) return "is-static";
-  if (mode === LightingMode.Breath || mode === LightingMode.Pulsating) return "is-breathing";
-  if (mode === LightingMode.Glittering) return "is-glittering";
-  if (mode === LightingMode.Colourful || mode === LightingMode.Spectrum) return "is-rainbow";
-  if (
-    mode === LightingMode.Outward ||
-    mode === LightingMode.Explode ||
-    mode === LightingMode.Ripples
-  ) {
-    return "is-radial";
-  }
-  if (mode === LightingMode.Falling) return "is-falling";
-  if (mode === LightingMode.SingleOn || mode === LightingMode.SingleOff) return "is-reactive";
-  if (mode === LightingMode.Scrolling) return "is-scrolling";
-  return "is-wave";
+function EffectGlyph({ preview }: { preview: (typeof LIGHTING_EFFECTS)[number]["preview"] }) {
+  return <span className={`effect-glyph is-${preview}`} aria-hidden="true" />;
 }
 
 function LevelSelect({
@@ -391,23 +324,7 @@ function LevelSelect({
 }
 
 function directionsForMode(mode: LightingMode): readonly (readonly [LightingDirection, string])[] {
-  if (mode === LightingMode.Scrolling) {
-    return [
-      [LightingDirection.Up, "Up"],
-      [LightingDirection.Down, "Down"],
-    ];
-  }
-  if (
-    mode === LightingMode.Rolling ||
-    mode === LightingMode.Flowing ||
-    mode === LightingMode.Tilt
-  ) {
-    return [
-      [LightingDirection.Left, "Left"],
-      [LightingDirection.Right, "Right"],
-    ];
-  }
-  return [];
+  return effectForMode(mode).directions;
 }
 
 function rgbToHex(color: LightingConfig["color"]): string {

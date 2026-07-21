@@ -193,10 +193,10 @@ describe("processAnimatedImage", () => {
   });
 
   test("rejects animated WebP frame counts above the safety limit before decoding", async () => {
-    const file = new File([makeWebPContainer(true, 257)], "too-many.webp", {
+    const file = new File([makeWebPContainer(true, 256)], "too-many.webp", {
       type: "image/webp",
     });
-    await expect(processAnimatedImage(file)).rejects.toThrow(/257 frames exceed max 256/i);
+    await expect(processAnimatedImage(file)).rejects.toThrow(/256 frames exceed max 255/i);
   });
 });
 

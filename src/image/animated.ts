@@ -1,5 +1,5 @@
 import { decompressFrames, parseGIF } from "gifuct-js";
-import { SCREEN_HEIGHT, SCREEN_WIDTH } from "../protocol/constants";
+import { MAX_TFT_FRAMES, SCREEN_HEIGHT, SCREEN_WIDTH } from "../protocol/constants";
 import { containResizeRgba } from "./resize";
 import { rgb888ToRgb565 } from "./rgb565";
 
@@ -107,7 +107,7 @@ function fillRect(
 // freed once we start streaming.
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 const MAX_GIF_DIMENSION = 2048;
-const MAX_GIF_FRAMES = 256;
+const MAX_GIF_FRAMES = MAX_TFT_FRAMES;
 const MAX_PATCH_PIXELS = 50_000_000;
 
 type WebPInfo = {
@@ -163,8 +163,7 @@ export function inspectWebP(data: ArrayBuffer): WebPInfo {
     if (kind === "VP8X" && size >= 10) {
       animated ||= (bytes[payload] & 0x02) !== 0;
       width = 1 + bytes[payload + 4] + (bytes[payload + 5] << 8) + (bytes[payload + 6] << 16);
-      height =
-        1 + bytes[payload + 7] + (bytes[payload + 8] << 8) + (bytes[payload + 9] << 16);
+      height = 1 + bytes[payload + 7] + (bytes[payload + 8] << 8) + (bytes[payload + 9] << 16);
     } else if (kind === "ANIM") {
       animated = true;
     } else if (kind === "ANMF") {
@@ -285,8 +284,9 @@ async function processAnimatedWebP(arrayBuffer: ArrayBuffer): Promise<AnimatedIm
     throw new Error(`processAnimatedImage: ${info.frameCount} frames exceed max ${MAX_GIF_FRAMES}`);
   }
 
-  const ImageDecoderClass = (globalThis as unknown as { ImageDecoder?: BrowserImageDecoderConstructor })
-    .ImageDecoder;
+  const ImageDecoderClass = (
+    globalThis as unknown as { ImageDecoder?: BrowserImageDecoderConstructor }
+  ).ImageDecoder;
   if (!ImageDecoderClass) {
     throw new Error("Animated WebP requires a browser with the WebCodecs ImageDecoder API");
   }

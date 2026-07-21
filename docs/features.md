@@ -55,6 +55,17 @@ current architecture and macOS compatibility.
 - [x] Disable controls while a lighting transaction is running.
 - [x] Display validation, disconnection, and transfer failures in the panel.
 - [x] Add React component tests for mode-dependent controls and submission.
+- [x] Reconcile names and supported controls with the official effect catalogue.
+- [x] Give each effect a distinct approximate preview and make reactive previews
+      originate from user-selected keys.
+- [x] Detect the optional `0xff67` official command interface.
+- [x] Add tested command framing, response matching, mode 128, and the 512-byte
+      indexed custom RGB table.
+- [x] Add a static per-key editor with selection groups, paint/erase, gradients,
+      presets, recent colors, undo/redo, backup/restore, local profiles, and
+      versioned JSON import/export.
+- [ ] Physically validate custom write and restoration on PIDs `0x8009` and
+      `0x800a`, including ISO and ANSI LED mappings.
 
 ## Lighting sleep timeout
 

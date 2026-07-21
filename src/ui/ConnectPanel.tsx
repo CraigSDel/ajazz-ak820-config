@@ -24,8 +24,16 @@ export function ConnectPanel() {
   };
 
   return (
-    <section className="panel">
-      <h2>Connection</h2>
+    <section className="panel device-card connection-card">
+      <div className="card-heading">
+        <span className="card-icon" aria-hidden="true">
+          USB
+        </span>
+        <div>
+          <p className="eyebrow">Hardware access</p>
+          <h2>Connection</h2>
+        </div>
+      </div>
       <div className={`device-health health-${health}`} role="status" aria-live="polite">
         <span className="device-health-dot" aria-hidden="true" />
         <span>
@@ -47,10 +55,21 @@ export function ConnectPanel() {
           the 2.4&nbsp;GHz dongle — time sync and image upload will not work in those modes.
         </p>
       )}
-      <button type="button" onClick={onClick} disabled={busy || activeOperation !== null}>
+      <button
+        type="button"
+        className={
+          connected ? "secondary-action full-width-action" : "primary-action full-width-action"
+        }
+        onClick={onClick}
+        disabled={busy || activeOperation !== null}
+      >
         {connected ? "Disconnect" : "Connect keyboard"}
       </button>
-      {error && <p style={{ color: "#e88" }}>{error}</p>}
+      {error && (
+        <p className="inline-status is-error" role="alert">
+          {error}
+        </p>
+      )}
     </section>
   );
 }
