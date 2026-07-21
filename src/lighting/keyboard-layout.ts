@@ -18,13 +18,17 @@ const key = (
 });
 const gap = (label: string, width: number): LightingKey => ({ label: `gap-${label}`, width });
 
-/** LED IDs and ISO positions from the official AK820/820PRO configuration. */
+/** LED IDs arranged as the ANSI AK820 Pro shown in the supplied product image. */
 export const AK820_KEY_ROWS: readonly (readonly LightingKey[])[] = [
   [
     key(0, "Esc", "function"),
-    gap("esc", 0.75),
-    ...Array.from({ length: 12 }, (_, index) => key(index + 1, `F${index + 1}`, "function")),
-    gap("delete", 1),
+    gap("esc", 0.35),
+    ...Array.from({ length: 4 }, (_, index) => key(index + 1, `F${index + 1}`, "function")),
+    gap("f4", 0.25),
+    ...Array.from({ length: 4 }, (_, index) => key(index + 5, `F${index + 5}`, "function")),
+    gap("f8", 0.25),
+    ...Array.from({ length: 4 }, (_, index) => key(index + 9, `F${index + 9}`, "function")),
+    gap("delete", 0.15),
     key(106, "Del", "navigation"),
   ],
   [
@@ -32,9 +36,9 @@ export const AK820_KEY_ROWS: readonly (readonly LightingKey[])[] = [
     ...Array.from({ length: 10 }, (_, index) => key(index + 17, `${(index + 1) % 10}`, "numbers")),
     key(27, "-", "numbers"),
     key(28, "=", "numbers"),
-    key(92, "Back", "numbers", 2),
+    key(92, "Backspace", "numbers", 2),
     gap("end", 0.75),
-    key(107, "End", "navigation"),
+    key(107, "Home", "navigation"),
   ],
   [
     key(32, "Tab", "modifiers", 1.5),
@@ -43,7 +47,7 @@ export const AK820_KEY_ROWS: readonly (readonly LightingKey[])[] = [
     ),
     key(43, "[", "letters"),
     key(44, "]", "letters"),
-    key(76, "Enter", "modifiers", 1.5),
+    key(76, "\\", "letters", 1.5),
     gap("pgup", 0.75),
     key(105, "PgUp", "navigation"),
   ],
@@ -54,18 +58,17 @@ export const AK820_KEY_ROWS: readonly (readonly LightingKey[])[] = [
     ),
     key(58, ";", "letters"),
     key(59, "'", "letters"),
-    key(97, "#", "letters", 1.25),
+    key(97, "Enter", "modifiers", 2.25),
     gap("pgdn", 0.75),
     key(108, "PgDn", "navigation"),
   ],
   [
     key(64, "Shift", "modifiers", 2.25),
-    key(98, "ISO", "letters"),
     ...["Z", "X", "C", "V", "B", "N", "M", ",", ".", "/"].map((label, index) =>
       key(index + 65, label, "letters"),
     ),
     key(75, "Shift", "modifiers", 1.75),
-    gap("up", 0.75),
+    gap("up", 0.2),
     key(90, "Up", "arrows"),
   ],
   [
@@ -76,6 +79,7 @@ export const AK820_KEY_ROWS: readonly (readonly LightingKey[])[] = [
     key(84, "Alt Gr", "modifiers", 1.25),
     key(85, "Fn", "modifiers", 1.25),
     key(87, "R Ctrl", "modifiers", 1.25),
+    gap("arrows", 0.2),
     key(88, "Left", "arrows"),
     key(89, "Down", "arrows"),
     key(91, "Right", "arrows"),

@@ -28,6 +28,16 @@ describe("LightingPanel", () => {
     expect(preview.getAttribute("aria-label")).toContain("#123456");
   });
 
+  test("matches the ANSI AK820 Pro hardware layout", async () => {
+    const view = await renderPanel();
+    const preview = view.getByLabelText(/Virtual AK820 Pro lighting preview/);
+    expect(preview.querySelectorAll(".keyboard-key")).toHaveLength(81);
+    expect(preview.querySelector(".keyboard-knob")).toBeTruthy();
+    expect(preview.querySelector(".keyboard-screen")).toBeTruthy();
+    expect(preview.querySelector(".keyboard-status-lights")?.textContent).toBe("CW");
+    expect(preview.querySelectorAll(".is-accent-key")).toHaveLength(3);
+  });
+
   test("offers quick color swatches without replacing the full color picker", async () => {
     const view = await renderPanel();
     fireEvent.click(view.getByRole("button", { name: "Use color #0a84ff" }));
