@@ -159,6 +159,7 @@ Protocol details derived from these reverse-engineering projects:
 - [gohv/EPOMAKER-Ajazz-AK820-Pro](https://github.com/gohv/EPOMAKER-Ajazz-AK820-Pro) — time sync, AK820-Pro-specific.
 - [aar-rafi/aks075-linux](https://github.com/aar-rafi/aks075-linux) — image upload, AKS075 sibling keyboard.
 - [TaxMachine/ajazz-keyboard-software-linux](https://github.com/TaxMachine/ajazz-keyboard-software-linux) — AK820 Pro cross-check.
+- [Beattrey/ajazz-ak820-config](https://github.com/Beattrey/ajazz-ak820-config) — reference implementation.
 
 ## License
 
