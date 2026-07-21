@@ -11,7 +11,8 @@ Chromium browser. It remains local-only and communicates through WebHID.
 - Animated GIF/WebP and ordered multi-image upload.
 - Twenty preset lighting modes with color, palette, brightness, speed, and
   mode-aware direction controls.
-- AK820 Pro-specific four-report preset transaction with Off/Steady
+- AK820 Pro-specific four-report preset transaction, repeated for reliable
+  firmware commit, with Off/Steady
   normalization and byte-level tests.
 - Lighting sleep timeout.
 - Approximate interactive keyboard preview.

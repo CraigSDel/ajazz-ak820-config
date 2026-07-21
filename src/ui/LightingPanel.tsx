@@ -111,6 +111,15 @@ export function LightingPanel() {
           </button>
         </fieldset>
       </div>
+      {editingMode === "per-key" && (
+        <aside className="development-banner" role="note" aria-label="Per-key RGB status">
+          <span aria-hidden="true">!</span>
+          <div>
+            <strong>Per-key RGB is in development</strong>
+            <p>This experimental feature may not apply or restore colors correctly yet.</p>
+          </div>
+        </aside>
+      )}
       <LightingKeyboard {...keyboardProps} />
       <p className="keyboard-context">
         {editingMode === "effects" ? (

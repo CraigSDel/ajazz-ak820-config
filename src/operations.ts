@@ -33,6 +33,7 @@ export type ProgressCallback = (fraction: number) => void;
 // transport accepts them.
 const INTER_PACKET_DELAY_MS = 50;
 const POST_SAVE_DELAY_MS = 100;
+const LIGHTING_RETRY_DELAY_MS = 150;
 const CHUNK_ACK_TIMEOUT_MS = 300;
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -94,15 +95,21 @@ export async function setLighting(ctrl: DeviceController, config: LightingConfig
     buildLightingFinishReport(),
   ];
 
-  for (const report of reports) {
-    await ctrl.sendFeatureReport(report);
-    // Both direct AK820 Pro implementations perform a best-effort GET_FEATURE
-    // handshake after every SET, including the mode-valued data packet. The
-    // controller deliberately treats unsupported reads as non-fatal.
-    await ctrl.receiveFeatureReport(0);
-    await sleep(INTER_PACKET_DELAY_MS);
+  // Hardware testing found that the keyboard sometimes acknowledges the first
+  // transaction without committing it. Repeating the complete transaction is
+  // the reliable equivalent of the previously required second Apply click.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) await sleep(LIGHTING_RETRY_DELAY_MS);
+    for (const report of reports) {
+      await ctrl.sendFeatureReport(report);
+      // Hardware A/B testing showed that a WebHID GET_FEATURE after MODE_DATA
+      // makes working modes go dark or leaves the previous effect active.
+      // Handshake only the 0x04 control reports.
+      if (report.reportId === 0x04) await ctrl.receiveFeatureReport(0);
+      await sleep(INTER_PACKET_DELAY_MS);
+    }
+    await sleep(POST_SAVE_DELAY_MS);
   }
-  await sleep(POST_SAVE_DELAY_MS);
 }
 
 export async function setLightingSleepTime(

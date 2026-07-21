@@ -39,17 +39,17 @@ interrupt OUT reports.
 
 ## Handshake rule
 
-The direct AK820 Pro implementations perform a best-effort GET-feature
-handshake after every feature write:
+WebHID hardware testing established an operation-specific handshake rule:
 
-- Lighting START, MODE_PREAMBLE, MODE_DATA, and FINISH: read.
+- Lighting START, MODE_PREAMBLE, and FINISH: read.
+- Lighting MODE_DATA: do not read.
 - Sleep START and SLEEP_PREAMBLE: read allowed.
 - Unnumbered sleep data: no read.
 - Image chunks: wait for the data-interface ACK input report instead.
 
-WebHID requests the unnumbered report (`0`) for each handshake. Unsupported or
-stalled reads are non-fatal, matching the reference implementations' error
-handling.
+WebHID requests unnumbered report `0` for each allowed handshake. A MODE_DATA
+read caused modes to go dark or retain the prior effect, so the working hidapi
+read sequence must not be copied mechanically into WebHID.
 
 ## Timing
 

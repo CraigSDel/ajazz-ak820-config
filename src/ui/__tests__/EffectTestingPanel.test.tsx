@@ -20,18 +20,16 @@ describe("EffectTestingPanel", () => {
       </DeviceSessionProvider>,
     );
 
-    fireEvent.click(view.getByText("Manual effect validation"));
-    fireEvent.click(view.getByRole("button", { name: "Works" }));
-    fireEvent.change(view.getByLabelText("What did the keyboard display?"), {
+    fireEvent.change(view.getByLabelText("Note · required for Wrong effect"), {
       target: { value: "steady red" },
     });
+    fireEvent.click(view.getByRole("button", { name: /Works/ }));
 
-    const report = view.getByLabelText(/Paste this report/) as HTMLTextAreaElement;
+    const report = view.getByLabelText(/Copy this report/) as HTMLTextAreaElement;
     expect(report.value).toContain("Mode 1 / Steady: Works — steady red");
 
-    fireEvent.click(view.getByRole("button", { name: "Select and apply next untested effect" }));
     await waitFor(() => expect(view.getByRole("heading", { name: "Key Press — Light Up" })).toBeTruthy());
-    await waitFor(() => expect(controller.sent).toHaveLength(4));
+    await waitFor(() => expect(controller.sent).toHaveLength(8));
     expect(controller.sent.at(-2)?.reportId).toBe(LightingMode.SingleOn);
   });
 });

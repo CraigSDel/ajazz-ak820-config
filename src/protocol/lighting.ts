@@ -84,6 +84,7 @@ export function buildLightingDataReport(config: LightingConfig): ReportMessage {
   validateLevel("speed", config.speed);
   validateDirection(config.direction);
 
+  const effectiveMode = effectiveLightingMode(config.mode);
   const bytes = new Uint8Array(PAYLOAD_LENGTH);
   bytes[0] = config.color.red;
   bytes[1] = config.color.green;
@@ -96,7 +97,13 @@ export function buildLightingDataReport(config: LightingConfig): ReportMessage {
   bytes[13] = DELIMITER_LOW;
   bytes[14] = DELIMITER_HIGH;
 
-  return { reportId: config.mode, bytes };
+  return { reportId: effectiveMode, bytes };
+}
+
+function effectiveLightingMode(mode: LightingMode): LightingMode {
+  if (mode === LightingMode.Off) return LightingMode.SingleOn;
+  if (mode === LightingMode.Static) return LightingMode.Breath;
+  return mode;
 }
 
 function buildLightingControlReport(command: number): ReportMessage {

@@ -27,9 +27,12 @@ explicitly approximate; Apply is the only preset hardware write.
 
 ## Testing workspace
 
-Hardware validation is kept out of normal configuration. The page records one
-observation per mode, stores results locally, applies the next untested effect
-automatically, and exports a plain-text report. Reactive modes remind the user
+Hardware validation is kept out of normal configuration. After the first Apply,
+each Works, Wrong effect, or No lighting result is saved and the next untested
+mode is applied automatically, making the primary loop one click per mode.
+Connection errors stop the sequence; a note is required before recording Wrong
+effect so diagnostic identity is not lost. Progress remains visible, and the
+plain-text report stays collapsed until needed. Reactive modes remind the user
 to press physical keys.
 
 ## Feedback and safety

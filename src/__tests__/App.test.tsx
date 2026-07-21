@@ -36,7 +36,7 @@ describe("Configurator workspace", () => {
 
     fireEvent.click(view.getByRole("button", { name: "Testing: Hardware effect validation" }));
     expect(view.getByRole("heading", { name: "Testing" })).toBeTruthy();
-    expect(view.getByText("Manual effect validation")).toBeTruthy();
+    expect(view.getByRole("heading", { name: "What does the keyboard show?" })).toBeTruthy();
 
     fireEvent.click(view.getByRole("button", { name: "Device: Connection and time" }));
     expect(view.getByRole("heading", { name: "Device" })).toBeTruthy();

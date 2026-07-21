@@ -726,10 +726,11 @@ transaction:
 3. **MODE_DATA** — the mode-specific report described below.
 4. **FINISH** — command `0xF0`, byte 8 = `0x01`.
 
-Issue a best-effort GET-feature handshake after all four packets. Both direct
-AK820 Pro implementations do this, including after MODE_DATA, and ignore read
-errors. In WebHID the application requests unnumbered report `0` because the
-control descriptor does not expose the mode values as declared report IDs.
+In WebHID, issue a best-effort GET-feature handshake after the three `0x04`
+control packets only. Do not read after MODE_DATA: physical A/B testing showed
+that this made known-good modes go dark or retain the previous effect. The
+hidapi references read after every packet, but that behavior does not transfer
+safely to Chrome's unnumbered-report API.
 
 The mode data packet uses **byte 0 as the report ID = the requested lighting
 mode value** (not `0x04`). `ReportMessage` strips that leading byte into its
@@ -765,10 +766,9 @@ single-on (`0x02`), single-off (`0x03`), glittering (`0x04`), falling
 (`0x0D`), launch (`0x0E`), ripples (`0x0F`), flowing (`0x10`), pulsating
 (`0x11`), tilt (`0x12`), and shuttle (`0x13`).
 
-Transmit every requested mode directly. Off uses report byte `0x00` with
-brightness and speed both 0; Static uses report byte `0x01` with speed 0. The
-previous SingleOn/Breath substitution was not present in either cited AK820 Pro
-implementation and hardware testing showed that it left Steady dark.
+For the browser transport, Off is sent as SingleOn (`0x02`) with brightness and
+speed 0, and Static is sent as Breath (`0x07`) with speed 0. Hardware comparison
+favored these normalized packets over direct report bytes `0x00` and `0x01`.
 
 ### Direction caveat
 

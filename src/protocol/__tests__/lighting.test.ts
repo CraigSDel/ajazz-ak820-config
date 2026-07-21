@@ -52,22 +52,22 @@ describe("buildLightingDataReport", () => {
     ]);
   });
 
-  test("encodes static with its native mode and speed zero", () => {
+  test("encodes static as firmware breath mode with speed zero", () => {
     const report = buildLightingDataReport({
       ...DEFAULT_CONFIG,
       mode: LightingMode.Static,
       rainbow: false,
     });
 
-    expect(report.reportId).toBe(LightingMode.Static);
+    expect(report.reportId).toBe(LightingMode.Breath);
     expect(report.bytes[8]).toBe(5);
     expect(report.bytes[9]).toBe(0);
   });
 
-  test("encodes off with its native mode and zero brightness and speed", () => {
+  test("encodes off as firmware single-on mode with zero brightness and speed", () => {
     const report = buildLightingDataReport({ ...DEFAULT_CONFIG, mode: LightingMode.Off });
 
-    expect(report.reportId).toBe(LightingMode.Off);
+    expect(report.reportId).toBe(LightingMode.SingleOn);
     expect(report.bytes[8]).toBe(0);
     expect(report.bytes[9]).toBe(0);
   });

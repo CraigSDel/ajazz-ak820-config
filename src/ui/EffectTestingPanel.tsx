@@ -47,9 +47,9 @@ export function EffectTestingPanel() {
     <section className="panel lighting-panel">
       <div className="settings-card">
         <p className="eyebrow">Hardware validation</p>
-        <h3>{effect.name}</h3>
+        <h2>{effect.name}</h2>
         <p>
-          Test configuration: red, brightness 5, speed 3
+          Mode {config.mode} · red · brightness 5 · speed 3
           {effect.reactive ? ". Press several physical keys after applying." : "."}
         </p>
         <button
@@ -58,7 +58,7 @@ export function EffectTestingPanel() {
           disabled={!connected || busy}
           onClick={() => selectAndApply(config.mode)}
         >
-          Apply current test effect
+          {status ? "Apply again" : "Start test"}
         </button>
         {status && (
           <p className="lighting-feedback settings-card-feedback" role="status" aria-live="polite">

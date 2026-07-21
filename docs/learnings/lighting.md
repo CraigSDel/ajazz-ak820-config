@@ -17,12 +17,16 @@ Every preset uses four 64-byte feature reports on the control interface:
 3. MODE_DATA (the first byte is the requested mode)
 4. FINISH (`0x04 0xf0`)
 
-Perform a best-effort feature acknowledgement after every report, including
-MODE_DATA. Both direct AK820 Pro reference implementations do this; read errors
-remain non-fatal because WebHID exposes the unnumbered descriptor differently
-from hidapi. Preset brightness and speed are levels 1–5. Off uses brightness
-and speed 0, while Steady uses speed 0. Every effect is sent with its native
-mode ID, including Off (`0`) and Steady (`1`).
+Send the complete four-report transaction twice with a short settling delay.
+Physical testing showed that the firmware sometimes acknowledged the first
+transaction without committing it; manually clicking Apply twice made the
+effect work. The automatic repeat makes that workaround deterministic.
+
+Perform a best-effort feature acknowledgement after START, MODE_PREAMBLE, and
+FINISH, but not MODE_DATA. Hardware A/B testing showed that a WebHID read after
+MODE_DATA made modes 4–6 go dark and left modes 16–17 on the previous effect.
+Preset brightness and speed are levels 1–5. Off is transmitted as mode 2 with
+both levels 0; Steady is transmitted as mode 7 with speed 0.
 
 The optional `0xff67` command interface is not used for presets. Hardware tests
 showed that its generic SET-effect command could acknowledge a write while most
@@ -88,8 +92,8 @@ version so results from incompatible implementations are not mixed.
 ## Lessons retained
 
 - A successful HID acknowledgement does not prove visible lighting.
-- Match the reference transaction with a best-effort read after MODE_DATA; do
-  not add unrelated background connection heartbeats.
+- Do not read after MODE_DATA in WebHID; hidapi reference behavior did not
+  transfer safely to the browser transport.
 - Keep preset and experimental custom-RGB transports separate.
 - Do not expose level 6 for presets; the hardware feature packet supports 0–5.
 - Label reactive and fixed-palette modes so they are not mistaken for failures.

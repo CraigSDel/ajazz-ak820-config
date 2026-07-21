@@ -51,25 +51,29 @@ describe("setLighting", () => {
     await setLighting(ctrl, { ...LIGHTING_CONFIG, mode: LightingMode.Rolling });
 
     expect(ctrl.commandRequests).toHaveLength(0);
-    expect(ctrl.sent.map((report) => report.reportId)).toEqual([0x04, 0x04, 0x0b, 0x04]);
+    expect(ctrl.sent.map((report) => report.reportId)).toEqual([
+      0x04, 0x04, 0x0b, 0x04,
+      0x04, 0x04, 0x0b, 0x04,
+    ]);
   });
 
-  test("sends START, MODE, native DATA, and FINISH in order", async () => {
+  test("sends the complete normalized transaction twice", async () => {
     const ctrl = new MockDeviceController();
     await ctrl.connect();
 
     await setLighting(ctrl, LIGHTING_CONFIG);
 
-    expect(ctrl.sent).toHaveLength(4);
-    expect(ctrl.sent.map((report) => report.kind)).toEqual([
-      "feature",
-      "feature",
-      "feature",
-      "feature",
+    expect(ctrl.sent).toHaveLength(8);
+    expect(ctrl.sent.every((report) => report.kind === "feature")).toBe(true);
+    expect(ctrl.sent.map((report) => report.reportId)).toEqual([
+      0x04, 0x04, 0x07, 0x04,
+      0x04, 0x04, 0x07, 0x04,
     ]);
-    expect(ctrl.sent.map((report) => report.reportId)).toEqual([0x04, 0x04, 0x01, 0x04]);
-    expect(ctrl.sent.map((report) => report.bytes[0])).toEqual([0x18, 0x13, 0xff, 0xf0]);
-    expect(ctrl.receivedFeatureReportIds).toEqual([0, 0, 0, 0]);
+    expect(ctrl.sent.map((report) => report.bytes[0])).toEqual([
+      0x18, 0x13, 0xff, 0xf0,
+      0x18, 0x13, 0xff, 0xf0,
+    ]);
+    expect(ctrl.receivedFeatureReportIds).toEqual([0, 0, 0, 0, 0, 0]);
   });
 
   test("defensively clamps level 6 to the AK820 Pro feature range", async () => {
@@ -88,7 +92,7 @@ describe("setLighting", () => {
 
     await expect(setLighting(ctrl, LIGHTING_CONFIG)).rejects.toMatchObject({
       name: "DeviceFailure",
-      error: { kind: "transfer-failed", reportId: LightingMode.Static },
+      error: { kind: "transfer-failed", reportId: LightingMode.Breath },
     });
     expect(ctrl.sent).toHaveLength(2);
   });
