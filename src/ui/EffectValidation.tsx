@@ -19,7 +19,9 @@ const RESULT_LABELS: Record<Result, string> = {
 
 function initialObservations(): Observations {
   const empty: Observations = {};
-  for (const { mode } of LIGHTING_EFFECTS) empty[mode] = { result: "untested", note: "" };
+  for (const { protocolId } of LIGHTING_EFFECTS) {
+    empty[protocolId] = { result: "untested", note: "" };
+  }
   try {
     return { ...empty, ...JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") };
   } catch {
@@ -59,12 +61,15 @@ export function EffectValidation({
   };
 
   const next = async () => {
-    const start = LIGHTING_EFFECTS.findIndex((effect) => effect.mode === mode);
+    const start = LIGHTING_EFFECTS.findIndex((effect) => effect.protocolId === mode);
     const nextEffect = [
       ...LIGHTING_EFFECTS.slice(start + 1),
       ...LIGHTING_EFFECTS.slice(0, start + 1),
-    ].find((effect) => effect.mode !== mode && observations[effect.mode].result === "untested");
-    if (nextEffect) await onSelectAndApply(nextEffect.mode);
+    ].find(
+      (effect) =>
+        effect.protocolId !== mode && observations[effect.protocolId].result === "untested",
+    );
+    if (nextEffect) await onSelectAndApply(nextEffect.protocolId);
   };
 
   const recordAndContinue = async (result: Exclude<Result, "untested">) => {
@@ -87,7 +92,7 @@ export function EffectValidation({
       <div className="validation-heading">
         <div>
           <p className="eyebrow">Test runner</p>
-          <h3 id="test-runner-title">{selected.name}</h3>
+          <h3 id="test-runner-title">{selected.displayName}</h3>
         </div>
         <strong className="validation-count">
           {tested}/{LIGHTING_EFFECTS.length}
@@ -163,10 +168,10 @@ export function buildEffectReport(observations: Observations): string {
     "",
   ];
   for (const effect of LIGHTING_EFFECTS) {
-    const observation = observations[effect.mode];
+    const observation = observations[effect.protocolId];
     const note = observation.note.trim() ? ` — ${observation.note.trim()}` : "";
     lines.push(
-      `- Mode ${effect.mode} / ${effect.name}: ${RESULT_LABELS[observation.result]}${note}`,
+      `- Protocol effect ${effect.protocolId} / ${effect.displayName}: ${RESULT_LABELS[observation.result]}${note}`,
     );
   }
   return lines.join("\n");

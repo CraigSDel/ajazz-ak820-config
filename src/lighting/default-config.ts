@@ -2,7 +2,7 @@ import { type LightingConfig, LightingDirection, LightingMode } from "../protoco
 
 /** Shared baseline used by both normal lighting and hardware validation. */
 export const DEFAULT_LIGHTING_CONFIG: LightingConfig = {
-  mode: LightingMode.Static,
+  mode: LightingMode.Effect1,
   color: { red: 255, green: 0, blue: 0 },
   rainbow: false,
   brightness: 5,

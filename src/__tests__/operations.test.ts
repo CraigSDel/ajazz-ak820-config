@@ -12,7 +12,7 @@ import { LightingDirection, LightingMode } from "../protocol/lighting";
 import { LightingSleepTime } from "../protocol/lighting-sleep";
 
 const LIGHTING_CONFIG = {
-  mode: LightingMode.Static,
+  mode: LightingMode.Effect1,
   color: { red: 255, green: 0, blue: 0 },
   rainbow: false,
   brightness: 5 as const,
@@ -48,7 +48,7 @@ describe("setLighting", () => {
     const ctrl = new MockDeviceController({ commandTransport: true });
     await ctrl.connect();
 
-    await setLighting(ctrl, { ...LIGHTING_CONFIG, mode: LightingMode.Rolling });
+    await setLighting(ctrl, { ...LIGHTING_CONFIG, mode: LightingMode.Effect11 });
 
     expect(ctrl.commandRequests).toHaveLength(0);
     expect(ctrl.sent.map((report) => report.reportId)).toEqual([
@@ -89,7 +89,7 @@ describe("setLighting", () => {
 
     await expect(setLighting(ctrl, LIGHTING_CONFIG)).rejects.toMatchObject({
       name: "DeviceFailure",
-      error: { kind: "transfer-failed", reportId: LightingMode.Breath },
+      error: { kind: "transfer-failed", reportId: LightingMode.Effect7 },
     });
     expect(ctrl.sent).toHaveLength(2);
   });

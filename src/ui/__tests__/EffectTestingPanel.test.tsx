@@ -69,12 +69,14 @@ describe("EffectTestingPanel", () => {
 
     const report = view.getByLabelText(/Report copied after every result/) as HTMLTextAreaElement;
     await waitFor(() =>
-      expect(report.value).toContain("Mode 1 / Effect 1: Works — steady red"),
+      expect(report.value).toContain("Protocol effect 1 / Steady: Works — steady red"),
     );
     await waitFor(() => expect(clipboardWrite).toHaveBeenCalledWith(report.value));
 
-    await waitFor(() => expect(view.getByRole("heading", { name: "Effect 2" })).toBeTruthy());
+    await waitFor(() =>
+      expect(view.getByRole("heading", { name: "Key Press — Light Up" })).toBeTruthy(),
+    );
     await waitFor(() => expect(controller.sent).toHaveLength(16));
-    expect(controller.sent.at(-2)?.reportId).toBe(LightingMode.SingleOn);
+    expect(controller.sent.at(-2)?.reportId).toBe(LightingMode.Effect2);
   });
 });

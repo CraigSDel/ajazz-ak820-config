@@ -8,7 +8,7 @@ import {
 } from "../lighting";
 
 const DEFAULT_CONFIG: LightingConfig = {
-  mode: LightingMode.Rolling,
+  mode: LightingMode.Effect11,
   color: { red: 0x12, green: 0x34, blue: 0x56 },
   rainbow: true,
   brightness: 5,
@@ -30,7 +30,7 @@ describe("buildLightingDataReport", () => {
   test("builds a byte-exact normal effect report", () => {
     const report = buildLightingDataReport(DEFAULT_CONFIG);
 
-    expect(report.reportId).toBe(LightingMode.Rolling);
+    expect(report.reportId).toBe(LightingMode.Effect11);
     expect(report.bytes).toHaveLength(63);
     expect(Array.from(report.bytes)).toEqual([
       0x12,
@@ -55,11 +55,11 @@ describe("buildLightingDataReport", () => {
   test("encodes static as firmware breath mode with speed zero", () => {
     const report = buildLightingDataReport({
       ...DEFAULT_CONFIG,
-      mode: LightingMode.Static,
+      mode: LightingMode.Effect1,
       rainbow: false,
     });
 
-    expect(report.reportId).toBe(LightingMode.Breath);
+    expect(report.reportId).toBe(LightingMode.Effect7);
     expect(report.bytes[8]).toBe(5);
     expect(report.bytes[9]).toBe(0);
   });
@@ -67,7 +67,7 @@ describe("buildLightingDataReport", () => {
   test("encodes off as firmware single-on mode with zero brightness and speed", () => {
     const report = buildLightingDataReport({ ...DEFAULT_CONFIG, mode: LightingMode.Off });
 
-    expect(report.reportId).toBe(LightingMode.SingleOn);
+    expect(report.reportId).toBe(LightingMode.Effect2);
     expect(report.bytes[8]).toBe(0);
     expect(report.bytes[9]).toBe(0);
   });

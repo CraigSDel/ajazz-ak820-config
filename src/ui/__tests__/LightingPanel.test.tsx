@@ -45,31 +45,31 @@ describe("LightingPanel", () => {
     expect(view.getByText("Built-in multicolor palette")).toBeTruthy();
   });
 
-  test("identifies the selected numbered effect without simulating its motion", async () => {
+  test("uses presentation metadata to name and animate a protocol effect", async () => {
     const view = await renderPanel();
     const preview = view.getByLabelText(/Virtual AK820 Pro lighting preview/);
 
-    selectEffect(view, "Effect 10");
+    selectEffect(view, "Cross-Wave");
 
-    expect(preview.classList.contains("is-steady")).toBe(true);
-    expect(preview.getAttribute("aria-label")).toContain("Effect 10 effect");
+    expect(preview.classList.contains("is-cross-wave")).toBe(true);
+    expect(preview.getAttribute("aria-label")).toContain("Cross-Wave effect");
   });
 
   test("shows only the directions supported by the selected mode", async () => {
     const view = await renderPanel();
     expect(view.queryByLabelText("Direction")).toBeNull();
-    selectEffect(view, "Effect 10");
+    selectEffect(view, "Cross-Wave");
     expect(view.getByLabelText("Direction").textContent).toContain("Up");
     expect(view.getByLabelText("Direction").textContent).toContain("Down");
 
-    selectEffect(view, "Effect 11");
+    selectEffect(view, "Rolling Wave");
     expect(view.getByLabelText("Direction").textContent).toContain("Left");
     expect(view.getByLabelText("Direction").textContent).toContain("Right");
 
-    selectEffect(view, "Effect 12");
+    selectEffect(view, "Rotating Wave");
     expect(view.getByLabelText("Direction").textContent).toContain("Left");
 
-    selectEffect(view, "Effect 1");
+    selectEffect(view, "Steady");
     expect(view.queryByLabelText("Direction")).toBeNull();
   });
 
@@ -111,21 +111,21 @@ describe("LightingPanel", () => {
   test("hides controls which the effect metadata marks unsupported", async () => {
     const view = await renderPanel();
     expect(view.queryByLabelText("Speed")).toBeNull();
-    selectEffect(view, "Effect 8");
+    selectEffect(view, "Spectrum Cycle");
     expect(view.queryByLabelText("Lighting color")).toBeNull();
     expect(view.queryByText("Built-in multicolor palette")).toBeNull();
     expect(view.getByLabelText("Speed")).toBeTruthy();
   });
 
-  test("does not imply reactive behavior in the preview", async () => {
+  test("previews reactive presentation metadata on pointer input", async () => {
     const view = await renderPanel();
-    selectEffect(view, "Effect 15");
+    selectEffect(view, "Key Press — Ripple");
     const preview = view.getByLabelText(/Virtual AK820 Pro lighting preview/);
     expect(preview.classList.contains("has-preview-trigger")).toBe(false);
     const key = preview.querySelector(".keyboard-key") as HTMLElement;
     fireEvent.pointerDown(key);
-    expect(preview.classList.contains("has-preview-trigger")).toBe(false);
-    expect(key.classList.contains("is-preview-origin")).toBe(false);
+    expect(preview.classList.contains("has-preview-trigger")).toBe(true);
+    expect(key.classList.contains("is-preview-origin")).toBe(true);
   });
 
   test("submits lighting through the device transaction", async () => {

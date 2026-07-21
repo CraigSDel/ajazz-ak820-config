@@ -22,10 +22,10 @@ export function EffectTestingPanel() {
         direction: nextEffect.directions[0]?.[0] ?? config.direction,
       };
       setConfig(nextConfig);
-      setStatus(`Applying ${nextEffect.name}…`);
+      setStatus(`Applying ${nextEffect.displayName}…`);
       try {
         await runOperation("lighting", () => setLighting(controller, nextConfig));
-        setStatus(`${nextEffect.name} applied · mode ${mode}`);
+        setStatus(`${nextEffect.displayName} applied · protocol effect ${mode}`);
       } catch (error) {
         setStatus(error instanceof Error ? error.message : "Lighting update failed");
       }

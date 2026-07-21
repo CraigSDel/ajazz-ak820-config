@@ -143,7 +143,7 @@ function validateLedEffectConfig(config: LightingConfig): void {
   if (
     !Number.isInteger(config.mode) ||
     config.mode < LightingMode.Off ||
-    config.mode > LightingMode.Shuttle
+    config.mode > LightingMode.Effect19
   ) {
     throw new Error(`buildLedEffectData: invalid lighting mode ${config.mode}`);
   }

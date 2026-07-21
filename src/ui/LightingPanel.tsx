@@ -308,7 +308,7 @@ function EffectPicker({
         <summary aria-label="Lighting effect">
           <EffectGlyph preview={selected.preview} />
           <span>
-            <strong>{selected.name}</strong>
+            <strong>{selected.displayName}</strong>
             <small>{selected.description}</small>
           </span>
           <span className="effect-picker-chevron" aria-hidden="true" />
@@ -318,20 +318,22 @@ function EffectPicker({
           {LIGHTING_EFFECTS.map((effect) => (
             <button
               type="button"
-              aria-label={effect.name}
+              aria-label={effect.displayName}
               className={
-                effect.mode === selected.mode ? "effect-option is-active" : "effect-option"
+                effect.protocolId === selected.protocolId
+                  ? "effect-option is-active"
+                  : "effect-option"
               }
-              aria-pressed={effect.mode === selected.mode}
+              aria-pressed={effect.protocolId === selected.protocolId}
               onClick={() => {
-                onChange(effect.mode);
+                onChange(effect.protocolId);
                 if (picker.current) picker.current.open = false;
               }}
-              key={effect.mode}
+              key={effect.protocolId}
             >
               <EffectGlyph preview={effect.preview} />
               <span>
-                <strong>{effect.name}</strong>
+                <strong>{effect.displayName}</strong>
                 <small>{effect.description}</small>
               </span>
             </button>

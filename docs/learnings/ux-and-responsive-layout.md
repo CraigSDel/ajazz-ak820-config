@@ -21,9 +21,11 @@ Preset and per-key editing share one persistent virtual keyboard. Switching
 modes changes controls and key interaction without remounting the keyboard,
 losing the per-key draft, or shifting the page.
 
-The effect picker shows recognizable names and small visual signatures. Only
-supported color, palette, speed, and direction controls appear. The preview is
-explicitly approximate; Apply is the only preset hardware write.
+The effect picker shows human-facing names and small visual signatures from a
+presentation catalogue keyed by immutable protocol IDs. Names, descriptions,
+control capabilities, and virtual-keyboard animations can be corrected from
+physical observations without changing the ID sent to the keyboard. The preview
+is explicitly approximate; Apply is the only preset hardware write.
 
 ## Testing workspace
 

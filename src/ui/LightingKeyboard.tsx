@@ -1,8 +1,13 @@
-import { type CSSProperties, type KeyboardEvent, useRef, useState } from "react";
+import { type CSSProperties, type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { effectForMode } from "../lighting/effects";
 import { AK820_KEY_ROWS } from "../lighting/keyboard-layout";
 import { rgbToHex } from "../lighting/color";
-import { type LightingConfig, LightingMode, type RGBColor } from "../protocol/lighting";
+import {
+  type LightingConfig,
+  LightingDirection,
+  LightingMode,
+  type RGBColor,
+} from "../protocol/lighting";
 
 type EffectKeyboardProps = {
   mode: "effect";
@@ -26,12 +31,15 @@ export function LightingKeyboard(props: LightingKeyboardProps) {
   const perKey = props.mode === "per-key";
   const config = props.mode === "effect" ? props.config : null;
   const effect = config ? effectForMode(config.mode) : null;
+  const [trigger, setTrigger] = useState<{ row: number; column: number } | null>(null);
   const [focusedId, setFocusedId] = useState(0);
   const buttonRefs = useRef(new Map<number, HTMLButtonElement>());
   const color = config ? rgbToHex(config.color) : "#ff0000";
+  const reverse =
+    config?.direction === LightingDirection.Right || config?.direction === LightingDirection.Down;
   const frameClass = perKey
     ? "is-per-key"
-    : previewEffectClass(config?.mode ?? LightingMode.Static);
+    : `${previewEffectClass(config?.mode ?? LightingMode.Effect1)}${config?.rainbow ? " is-rainbow" : ""}${reverse ? " is-reversed" : ""}${trigger ? " has-preview-trigger" : ""}`;
   const frameStyle = {
     "--key-light": color,
     "--key-brightness": config?.mode === LightingMode.Off ? 0 : (config?.brightness ?? 5) / 5,
@@ -39,7 +47,13 @@ export function LightingKeyboard(props: LightingKeyboardProps) {
   } as CSSProperties;
   const label = perKey
     ? "Interactive AK820 Pro per-key lighting editor"
-    : `Virtual AK820 Pro lighting preview, ${effect?.name ?? "Steady"} effect, ${color}`;
+    : `Virtual AK820 Pro lighting preview, ${effect?.displayName ?? "Steady"} effect, ${color}`;
+
+  useEffect(() => {
+    if (!trigger) return;
+    const timer = setTimeout(() => setTrigger(null), 1800);
+    return () => clearTimeout(timer);
+  }, [trigger]);
 
   const moveFocus = (ledId: number, key: string) => {
     const rowIndex = AK820_KEY_ROWS.findIndex((row) => row.some((item) => item.ledId === ledId));
@@ -116,7 +130,7 @@ export function LightingKeyboard(props: LightingKeyboardProps) {
               ) : (
                 <button
                   type="button"
-                  className="keyboard-key"
+                  className={`keyboard-key${!perKey && trigger?.row === rowIndex && trigger.column === columnIndex ? " is-preview-origin" : ""}`}
                   style={
                     {
                       flexGrow: item.width ?? 1,
@@ -124,6 +138,9 @@ export function LightingKeyboard(props: LightingKeyboardProps) {
                       "--key-index": columnIndex,
                       "--row-index": rowIndex,
                       "--distance": Math.abs(columnIndex - 6.5) + Math.abs(rowIndex - 2.5),
+                      "--trigger-distance": trigger
+                        ? Math.abs(columnIndex - trigger.column) + Math.abs(rowIndex - trigger.row)
+                        : 0,
                     } as CSSProperties
                   }
                   aria-hidden={perKey ? undefined : true}
@@ -136,6 +153,11 @@ export function LightingKeyboard(props: LightingKeyboardProps) {
                   onFocus={() => perKey && setFocusedId(item.ledId as number)}
                   onKeyDown={(event) => onKeyDown(event, item.ledId as number)}
                   onClick={() => perKey && props.onKey(item.ledId as number)}
+                  onPointerDown={() =>
+                    !perKey &&
+                    effect?.reactive &&
+                    setTrigger({ row: rowIndex, column: columnIndex })
+                  }
                   onPointerEnter={(event) =>
                     perKey && event.buttons === 1 && props.onPaintKey(item.ledId as number)
                   }

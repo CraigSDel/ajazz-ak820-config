@@ -41,13 +41,18 @@ full sweep would add noise rather than isolate the transport problem.
    `VITE_SHOW_HARDWARE_TESTING=true` and restart or rebuild.
 2. The current effect applies automatically. Observe the physical keyboard for
    at least one second.
-3. For reactive modes, press several physical keys.
-4. Record Works, Wrong effect, or No lighting. An explicit application error is
+3. Record the visible motion, palette behavior, and whether color, speed, and
+   direction controls visibly change it. For reactive-looking effects, press
+   several physical keys.
+4. Compare the observation with the displayed frontend name and virtual preview,
+   then record Works, Wrong effect, or No lighting. Use the note to describe the
+   observed effect when the name or preview is wrong. An explicit application error is
    shown on screen and should be resolved before recording a physical result.
 5. Each result copies the full report to the clipboard and automatically applies
    the next untested effect. Continue until all 20 are recorded.
 
-Pass: every mode has a physical result. An accepted command alone is not a pass.
+Pass: every protocol effect ID has a physical result and enough detail to correct
+its presentation metadata. An accepted command alone is not a pass.
 
 ## 5. Direction
 

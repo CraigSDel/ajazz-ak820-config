@@ -3,25 +3,25 @@ import type { ReportMessage } from "./types";
 
 export const LightingMode = {
   Off: 0x00,
-  Static: 0x01,
-  SingleOn: 0x02,
-  SingleOff: 0x03,
-  Glittering: 0x04,
-  Falling: 0x05,
-  Colourful: 0x06,
-  Breath: 0x07,
-  Spectrum: 0x08,
-  Outward: 0x09,
-  Scrolling: 0x0a,
-  Rolling: 0x0b,
-  Rotating: 0x0c,
-  Explode: 0x0d,
-  Launch: 0x0e,
-  Ripples: 0x0f,
-  Flowing: 0x10,
-  Pulsating: 0x11,
-  Tilt: 0x12,
-  Shuttle: 0x13,
+  Effect1: 0x01,
+  Effect2: 0x02,
+  Effect3: 0x03,
+  Effect4: 0x04,
+  Effect5: 0x05,
+  Effect6: 0x06,
+  Effect7: 0x07,
+  Effect8: 0x08,
+  Effect9: 0x09,
+  Effect10: 0x0a,
+  Effect11: 0x0b,
+  Effect12: 0x0c,
+  Effect13: 0x0d,
+  Effect14: 0x0e,
+  Effect15: 0x0f,
+  Effect16: 0x10,
+  Effect17: 0x11,
+  Effect18: 0x12,
+  Effect19: 0x13,
 } as const;
 
 export type LightingMode = (typeof LightingMode)[keyof typeof LightingMode];
@@ -92,7 +92,7 @@ export function buildLightingDataReport(config: LightingConfig): ReportMessage {
   bytes[7] = config.rainbow ? 1 : 0;
   bytes[8] = config.mode === LightingMode.Off ? 0 : config.brightness;
   bytes[9] =
-    config.mode === LightingMode.Off || config.mode === LightingMode.Static ? 0 : config.speed;
+    config.mode === LightingMode.Off || config.mode === LightingMode.Effect1 ? 0 : config.speed;
   bytes[10] = config.direction;
   bytes[13] = DELIMITER_LOW;
   bytes[14] = DELIMITER_HIGH;
@@ -101,8 +101,8 @@ export function buildLightingDataReport(config: LightingConfig): ReportMessage {
 }
 
 function effectiveLightingMode(mode: LightingMode): LightingMode {
-  if (mode === LightingMode.Off) return LightingMode.SingleOn;
-  if (mode === LightingMode.Static) return LightingMode.Breath;
+  if (mode === LightingMode.Off) return LightingMode.Effect2;
+  if (mode === LightingMode.Effect1) return LightingMode.Effect7;
   return mode;
 }
 
@@ -114,7 +114,7 @@ function buildLightingControlReport(command: number): ReportMessage {
 }
 
 function validateMode(mode: LightingMode): void {
-  if (!Number.isInteger(mode) || mode < LightingMode.Off || mode > LightingMode.Shuttle) {
+  if (!Number.isInteger(mode) || mode < LightingMode.Off || mode > LightingMode.Effect19) {
     throw new Error(`buildLightingDataReport: invalid lighting mode ${mode}`);
   }
 }

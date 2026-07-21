@@ -25,8 +25,10 @@ effect work. The automatic repeat makes that workaround deterministic.
 Perform a best-effort feature acknowledgement after START, MODE_PREAMBLE, and
 FINISH, but not MODE_DATA. Hardware A/B testing showed that a WebHID read after
 MODE_DATA made modes 4–6 go dark and left modes 16–17 on the previous effect.
-Preset brightness and speed are levels 1–5. Off is transmitted as mode 2 with
-both levels 0; Steady is transmitted as mode 7 with speed 0.
+Preset brightness and speed are levels 1–5. The frontend selection `Off` is
+transmitted with report ID 2 and both levels 0; frontend effect 1 is transmitted
+with report ID 7 and speed 0. These are wire encodings, not claims that those
+report IDs have the catalogue meanings previously assigned to them.
 
 The optional `0xff67` command interface is not used for presets. Hardware tests
 showed that its generic SET-effect command could acknowledge a write while most
@@ -34,11 +36,23 @@ AK820 Pro effects remained dark.
 
 ## Effect catalogue
 
-Names and capabilities use supplementary AJAZZ catalogue metadata, while the
-numeric IDs and transaction come from AK820 Pro-specific implementations.
-Physical testing remains the authority for visible behavior.
+The keyboard-facing identity and frontend interpretation are deliberately
+separate:
 
-| Modes | Behavior |
+- `LightingMode.Off` and `LightingMode.Effect1`–`Effect19` are stable protocol
+  selections. They are the only identities allowed in packet-building code.
+- `LightingEffect.displayName`, `description`, `preview`, and control
+  capabilities are replaceable presentation metadata.
+- A renamed or corrected animation must never change its `protocolId`.
+
+The AK820 Pro manual confirms 20 cyclic lighting effects and controls for
+colour, direction, brightness, and speed, but it does not publish a per-ID name
+mapping. AJAZZ product material likewise confirms dynamic/customizable effects
+without mapping names to IDs. Consequently, the current names below are a
+provisional supplementary catalogue interpretation. Physical observations on
+USB `0x0c45:0x8009` remain authoritative.
+
+| Protocol selection | Provisional frontend interpretation |
 |---|---|
 | 0 | Off |
 | 1 | Steady |
@@ -52,8 +66,10 @@ Physical testing remains the authority for visible behavior.
 | 16–19 | Flow, layered wave, rain, and shuttle |
 | 128 | Experimental static per-key RGB |
 
-Modes 2, 3, and 13–15 need physical key presses. Modes 6 and 8 choose their own
-colors. Direction controls appear only where metadata indicates support.
+Effects 2, 3, and 13–15 are provisionally reactive. Effects 6 and 8 are
+provisionally fixed-palette. Direction controls appear only where presentation
+metadata indicates support. Incorrect physical observations should update this
+table and `src/lighting/effects.ts`, never the numeric protocol constants.
 
 ## Experimental per-key RGB
 
@@ -84,7 +100,8 @@ The Lighting workspace contains normal effect and per-key controls. Hardware
 validation lives in the separate Testing workspace, which can be hidden with
 `VITE_SHOW_HARDWARE_TESTING=false`.
 
-The virtual keyboard is an approximate preview. The Testing workspace stores
+The virtual keyboard is an approximate rendering selected by each effect's
+presentation metadata; it is not a protocol simulation. The Testing workspace stores
 manual observations locally, applies the next untested effect automatically,
 and exports a text report. Changing the preset transport increments the storage
 version so results from incompatible implementations are not mixed.
@@ -96,14 +113,14 @@ version so results from incompatible implementations are not mixed.
   transfer safely to the browser transport.
 - Keep preset and experimental custom-RGB transports separate.
 - Do not expose level 6 for presets; the hardware feature packet supports 0–5.
-- Label reactive and fixed-palette modes so they are not mistaken for failures.
+- Keep protocol identity neutral; human names and previews are firmware-specific
+  observations rather than packet semantics.
 - Serialize every operation that shares a HID endpoint.
 
 ## Remaining hardware checks
 
-- Re-run all presets after restoring native mode IDs and the MODE_DATA
-  acknowledgement. Record the visible behavior of every "Wrong effect" so the
-  generic catalogue names can be corrected for this firmware.
+- Record the visible behavior of all 19 working effect IDs and replace every
+  provisional name, preview, and capability that differs on this firmware.
 - Confirm Up/Down direction and mode 19's visible behavior.
 - Confirm persistence across reconnect and power cycle.
 - Confirm sleep timing and wake behavior.

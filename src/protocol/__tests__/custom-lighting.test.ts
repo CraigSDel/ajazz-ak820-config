@@ -57,7 +57,7 @@ describe("custom per-key RGB payload", () => {
 describe("built-in RGB effect payload", () => {
   test("matches the official 16-byte SET_LED_EFFECT layout", () => {
     const data = buildLedEffectData({
-      mode: LightingMode.Rolling,
+      mode: LightingMode.Effect11,
       color: { red: 0x12, green: 0x34, blue: 0x56 },
       rainbow: true,
       brightness: 6,
@@ -66,7 +66,7 @@ describe("built-in RGB effect payload", () => {
     });
 
     expect([...data]).toEqual([
-      LightingMode.Rolling,
+      LightingMode.Effect11,
       0x12,
       0x34,
       0x56,
@@ -89,7 +89,7 @@ describe("built-in RGB effect payload", () => {
     const current = Uint8Array.from([1, 1, 2, 3, 0xff, 10, 20, 30, 0, 5, 3, 0, 2, 9, 0xaa, 0x55]);
     const data = buildLedEffectData(
       {
-        mode: LightingMode.Glittering,
+        mode: LightingMode.Effect4,
         color: { red: 255, green: 0, blue: 0 },
         rainbow: false,
         brightness: 5,
