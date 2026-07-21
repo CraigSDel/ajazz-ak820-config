@@ -1,17 +1,25 @@
-import { buildTimeSyncReports } from "./protocol/time";
-import {
-  buildImageStartReport,
-  buildImageCfgReport,
-  buildImageFinishReport,
-  buildImageDataChunks,
-  buildAnimatedStartReport,
-  buildAnimatedCfgReport,
-  buildAnimatedSaveReport,
-  buildAnimatedDataChunks,
-} from "./protocol/image";
-import { RGB565_FRAME_BYTES } from "./protocol/constants";
 import { DeviceFailure } from "./device/errors";
 import type { DeviceController } from "./device/types";
+import { RGB565_FRAME_BYTES } from "./protocol/constants";
+import {
+  buildImageCfgReport,
+  buildImageDataChunks,
+  buildImageSaveReport,
+  buildImageStartReport,
+} from "./protocol/image";
+import {
+  buildLightingDataReport,
+  buildLightingFinishReport,
+  buildLightingModePreambleReport,
+  buildLightingStartReport,
+  type LightingConfig,
+} from "./protocol/lighting";
+import {
+  buildLightingSleepDataReport,
+  buildLightingSleepPreambleReport,
+  type LightingSleepTime,
+} from "./protocol/lighting-sleep";
+import { buildTimeSyncReports } from "./protocol/time";
 
 export type ProgressCallback = (fraction: number) => void;
 
@@ -21,14 +29,31 @@ export type ProgressCallback = (fraction: number) => void;
 // transport accepts them.
 const INTER_PACKET_DELAY_MS = 50;
 const POST_SAVE_DELAY_MS = 100;
+const LIGHTING_RETRY_DELAY_MS = 150;
 const CHUNK_ACK_TIMEOUT_MS = 300;
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-export async function syncTime(
+async function sendImageChunks(
   ctrl: DeviceController,
-  date: Date,
+  chunks: readonly Uint8Array[],
+  onProgress: ProgressCallback,
 ): Promise<void> {
+  for (let i = 0; i < chunks.length; i++) {
+    await ctrl.sendReport({ reportId: 0, bytes: chunks[i] });
+    const acknowledgement = await ctrl.waitForDataInputReport(CHUNK_ACK_TIMEOUT_MS);
+    if (!acknowledgement) {
+      throw new DeviceFailure({
+        kind: "ack-timeout",
+        chunkIndex: i,
+        totalChunks: chunks.length,
+      });
+    }
+    onProgress((i + 1) / chunks.length);
+  }
+}
+
+export async function syncTime(ctrl: DeviceController, date: Date): Promise<void> {
   // buildTimeSyncReports throws on invalid date.
   const [start, preamble, data, save] = buildTimeSyncReports(date);
 
@@ -49,6 +74,58 @@ export async function syncTime(
   await sleep(POST_SAVE_DELAY_MS);
 }
 
+export async function setLighting(ctrl: DeviceController, config: LightingConfig): Promise<void> {
+  // Built-in effects on the original wired AK820 Pro use the captured
+  // four-report feature transaction. The optional 0xFF67 command interface is
+  // retained only for custom per-key RGB; its generic SET-effect command is not
+  // validated for these presets and can acknowledge modes that remain dark.
+  const featureConfig: LightingConfig = {
+    ...config,
+    brightness: Math.min(config.brightness, 5) as LightingConfig["brightness"],
+    speed: Math.min(config.speed, 5) as LightingConfig["speed"],
+  };
+  const reports = [
+    buildLightingStartReport(),
+    buildLightingModePreambleReport(),
+    buildLightingDataReport(featureConfig),
+    buildLightingFinishReport(),
+  ];
+
+  // Hardware testing found that the keyboard sometimes acknowledges the first
+  // transaction without committing it. Repeating the complete transaction is
+  // the reliable equivalent of the previously required second Apply click.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) await sleep(LIGHTING_RETRY_DELAY_MS);
+    for (const report of reports) {
+      await ctrl.sendFeatureReport(report);
+      // Hardware A/B testing showed that a WebHID GET_FEATURE after MODE_DATA
+      // makes working modes go dark or leaves the previous effect active.
+      // Handshake only the 0x04 control reports.
+      if (report.reportId === 0x04) await ctrl.receiveFeatureReport(0);
+      await sleep(INTER_PACKET_DELAY_MS);
+    }
+    await sleep(POST_SAVE_DELAY_MS);
+  }
+}
+
+export async function setLightingSleepTime(
+  ctrl: DeviceController,
+  sleepTime: LightingSleepTime,
+): Promise<void> {
+  const reports = [
+    buildLightingStartReport(),
+    buildLightingSleepPreambleReport(),
+    buildLightingSleepDataReport(sleepTime),
+  ];
+
+  for (const report of reports) {
+    await ctrl.sendFeatureReport(report);
+    if (report.reportId === 0x04) await ctrl.receiveFeatureReport(0);
+    await sleep(INTER_PACKET_DELAY_MS);
+  }
+  await sleep(POST_SAVE_DELAY_MS);
+}
+
 export async function uploadStaticImage(
   ctrl: DeviceController,
   rgb565: Uint8Array,
@@ -61,8 +138,8 @@ export async function uploadStaticImage(
     });
   }
 
-  // Static path — gohv framing (proven working on AK820 Pro).
-  // START(byte7=1) → IMAGE_CFG(sub=0x02) → 9 chunks of 4096 → FINISH(0xF0)
+  // Static path — AKS075 framing used by the Windows driver.
+  // START(byte7=0) → IMAGE_CFG(sub=0x03) → header + pixels → SAVE(0x02)
   const chunks = buildImageDataChunks([rgb565], undefined);
   onProgress(0);
 
@@ -72,14 +149,10 @@ export async function uploadStaticImage(
   await ctrl.sendFeatureReport(buildImageCfgReport(chunks.length));
   await ctrl.receiveFeatureReport(0);
 
-  for (let i = 0; i < chunks.length; i++) {
-    await ctrl.sendReport({ reportId: 0, bytes: chunks[i] });
-    await ctrl.waitForDataInputReport(CHUNK_ACK_TIMEOUT_MS);
-    onProgress((i + 1) / chunks.length);
-  }
+  await sendImageChunks(ctrl, chunks, onProgress);
 
   await sleep(INTER_PACKET_DELAY_MS);
-  await ctrl.sendFeatureReport(buildImageFinishReport());
+  await ctrl.sendFeatureReport(buildImageSaveReport());
   await ctrl.receiveFeatureReport(0);
   await sleep(POST_SAVE_DELAY_MS);
   onProgress(1);
@@ -98,27 +171,21 @@ export async function uploadAnimatedImage(
     });
   }
 
-  // Animated path — AKS075 framing: 256-byte frame header at start, sub=0x03,
-  // SAVE termination. AK820 Pro firmware appears to need this convention to
-  // know "this is N frames with delays X,Y,Z" rather than treating the data
-  // as one big static blob.
-  const chunks = buildAnimatedDataChunks(frames, delaysMs);
+  // The shared image framing carries the frame count and delays in its
+  // 256-byte header; a one-frame upload is simply the static case.
+  const chunks = buildImageDataChunks(frames, delaysMs);
   onProgress(0);
 
-  await ctrl.sendFeatureReport(buildAnimatedStartReport());
+  await ctrl.sendFeatureReport(buildImageStartReport());
   await ctrl.receiveFeatureReport(0);
 
-  await ctrl.sendFeatureReport(buildAnimatedCfgReport(chunks.length));
+  await ctrl.sendFeatureReport(buildImageCfgReport(chunks.length));
   await ctrl.receiveFeatureReport(0);
 
-  for (let i = 0; i < chunks.length; i++) {
-    await ctrl.sendReport({ reportId: 0, bytes: chunks[i] });
-    await ctrl.waitForDataInputReport(CHUNK_ACK_TIMEOUT_MS);
-    onProgress((i + 1) / chunks.length);
-  }
+  await sendImageChunks(ctrl, chunks, onProgress);
 
   await sleep(INTER_PACKET_DELAY_MS);
-  await ctrl.sendFeatureReport(buildAnimatedSaveReport());
+  await ctrl.sendFeatureReport(buildImageSaveReport());
   await ctrl.receiveFeatureReport(0);
   await sleep(POST_SAVE_DELAY_MS);
   onProgress(1);

@@ -1,5 +1,12 @@
+import { SCREEN_HEIGHT, SCREEN_WIDTH } from "../protocol/constants";
+import {
+  calculateContainRect,
+  containsTransparency,
+  fillContainPadding,
+  findDominantColor,
+  flattenTransparencyOntoBlack,
+} from "./resize";
 import { rgb888ToRgb565 } from "./rgb565";
-import { SCREEN_WIDTH, SCREEN_HEIGHT } from "../protocol/constants";
 
 const SUPPORTED_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 
@@ -20,34 +27,38 @@ export async function processStaticImage(file: File): Promise<Uint8Array> {
   }
 
   const bitmap = await createImageBitmap(file);
-  const canvas = new OffscreenCanvas(SCREEN_WIDTH, SCREEN_HEIGHT);
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    throw new Error("processStaticImage: 2D context unavailable");
+  try {
+    const canvas = new OffscreenCanvas(SCREEN_WIDTH, SCREEN_HEIGHT);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      throw new Error("processStaticImage: 2D context unavailable");
+    }
+
+    const sw = (bitmap as unknown as { width: number }).width;
+    const sh = (bitmap as unknown as { height: number }).height;
+    const rect = calculateContainRect(sw, sh, SCREEN_WIDTH, SCREEN_HEIGHT);
+    (ctx as unknown as CanvasRenderingContext2D).drawImage(
+      bitmap as unknown as CanvasImageSource,
+      rect.x,
+      rect.y,
+      rect.width,
+      rect.height,
+    );
+
+    const imageData = (ctx as unknown as CanvasRenderingContext2D).getImageData(
+      0,
+      0,
+      SCREEN_WIDTH,
+      SCREEN_HEIGHT,
+    );
+    if (containsTransparency(imageData.data, SCREEN_WIDTH, SCREEN_HEIGHT, rect)) {
+      flattenTransparencyOntoBlack(imageData.data);
+    } else {
+      const dominantColor = findDominantColor(imageData.data, SCREEN_WIDTH, SCREEN_HEIGHT, rect);
+      fillContainPadding(imageData.data, SCREEN_WIDTH, SCREEN_HEIGHT, rect, dominantColor);
+    }
+    return rgb888ToRgb565(imageData.data, SCREEN_WIDTH, SCREEN_HEIGHT, "le");
+  } finally {
+    if ("close" in bitmap && typeof bitmap.close === "function") bitmap.close();
   }
-
-  // Cover + center crop: scale so the shorter side fills the canvas,
-  // then center the longer side.
-  const sw = (bitmap as unknown as { width: number }).width;
-  const sh = (bitmap as unknown as { height: number }).height;
-  const scale = Math.max(SCREEN_WIDTH / sw, SCREEN_HEIGHT / sh);
-  const dw = sw * scale;
-  const dh = sh * scale;
-  const dx = (SCREEN_WIDTH - dw) / 2;
-  const dy = (SCREEN_HEIGHT - dh) / 2;
-  (ctx as unknown as CanvasRenderingContext2D).drawImage(
-    bitmap as unknown as CanvasImageSource,
-    dx,
-    dy,
-    dw,
-    dh,
-  );
-
-  const imageData = (ctx as unknown as CanvasRenderingContext2D).getImageData(
-    0,
-    0,
-    SCREEN_WIDTH,
-    SCREEN_HEIGHT,
-  );
-  return rgb888ToRgb565(imageData.data, SCREEN_WIDTH, SCREEN_HEIGHT, "le");
 }
