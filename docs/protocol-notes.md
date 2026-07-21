@@ -2,12 +2,14 @@
 
 These are the concrete byte-level layouts and transport details for the AJAZZ
 AK820 Pro keyboard's vendor HID protocol (time sync + 128×128 RGB565 TFT
-image/GIF upload), extracted from three reference implementations.
+image/GIF upload), extracted from three reference implementations and
+supplementary metadata from an AJAZZ web bundle.
 
-Every value below is verified against a specific file:line in one of the three
-source repositories. Where source disagrees with source, the disagreement is
-documented in the cross-check section so downstream tasks can decide which
-variant to implement and test against real hardware.
+Repository-derived values below are verified against a specific file and line.
+Online-driver findings identify the dated, content-hashed bundle inspected.
+Where sources disagree, the disagreement is documented in the cross-check
+section so downstream tasks can decide which variant to implement and test
+against real hardware.
 
 ## Sources
 
@@ -24,6 +26,15 @@ variant to implement and test against real hardware.
   — cross-check for AK820 Pro control reports. Files used:
   `src/keyboards/ak820pro.cpp`, `src/keyboards/ak820pro.hpp`,
   `src/keyboards/keyboarddefs.hpp`.
+- **AJAZZ web application** — WebHID application at
+  <https://ajazz.driveall.cn/>. Bundle inspected on 2026-07-21:
+  `assets/layout-classic-ZwpimY8M.js` (site response last-modified
+  2026-07-01). It contains direct AK820-family device configurations, TFT UI
+  state, image decoding, RGB565 conversion, device-reported frame limits, and
+  the generic `SET_TFT_USER_ANIMATION` transport. It does not claim AK820 Pro
+  support and is not primary hardware evidence. Because the deployed asset is
+  minified and may be replaced, retain the bundle hash and inspection date when
+  comparing future behavior.
 
 ## Device identification
 
@@ -690,14 +701,41 @@ def upload_gif(device, frames_rgb565, delays_ms):
   swallows feature reports. WebHID handles this automatically — the browser
   takes exclusive control of the matched HIDDevice.
 
-## Lighting-mode reference (relevant only as cross-check on the trailer)
+## Lighting sleep timeout
 
-Not directly needed for time-sync / image upload, but documented here because
-it confirms the `0xAA 0x55` trailer convention.
+Sources: `gohv/protocol.rs:214-278`, `gohv/usb.rs:242-249`, and TaxMachine
+`ak820pro.cpp:144-180`. The transaction contains three feature reports and no
+FINISH packet:
 
-The lighting-mode data packet (`gohv/protocol.rs:188-212`, TaxMachine
-`ak820pro.cpp:79-124`) uses **byte 0 as the report ID = the lighting-mode
-value itself** (not `0x04`). Sub-fields:
+1. **START** — command `0x18`, byte 8 = `0x01`.
+2. **SLEEP_PREAMBLE** — command `0x17`, sub-command byte 2 = `0x01`, byte 8 = `0x01`.
+3. **SLEEP_DATA** — report ID/byte 0 = `0x00`, timeout at byte 8, trailer
+   `0xAA 0x55` at bytes 62–63.
+
+Timeout values are never = 0, one minute = 1, five minutes = 2, and thirty
+minutes = 3. These are firmware enum values rather than minute counts.
+
+## RGB lighting mode
+
+Sources: `gohv/protocol.rs:53-212`, `gohv/usb.rs:151-172`, and TaxMachine
+`ak820pro.cpp:79-124`. Both AK820-Pro-specific implementations use this
+transaction:
+
+1. **START** — the standard `0x18` control packet with byte 8 = `0x01`.
+2. **MODE_PREAMBLE** — command `0x13`, byte 8 = `0x01`.
+3. **MODE_DATA** — the mode-specific report described below.
+4. **FINISH** — command `0xF0`, byte 8 = `0x01`.
+
+In WebHID, issue a best-effort GET-feature handshake after the three `0x04`
+control packets only. Do not read after MODE_DATA: physical A/B testing showed
+that this made known-good modes go dark or retain the previous effect. The
+hidapi references read after every packet, but that behavior does not transfer
+safely to Chrome's unnumbered-report API.
+
+The mode data packet uses **byte 0 as the report ID = the requested lighting
+mode value** (not `0x04`). `ReportMessage` strips that leading byte into its
+`reportId` field; `WebHIDDeviceController` reconstructs the complete 64-byte
+unnumbered WebHID payload. Sub-fields:
 
 | Offset | Length | Field |
 |---|---|---|
@@ -711,12 +749,84 @@ value itself** (not `0x04`). Sub-fields:
 | 10 | 1 | speed (0–5) |
 | 11 | 1 | direction (0=Left, 1=Down, 2=Up, 3=Right per gohv; 0=LEFT, 1=UP, 2=DOWN, 3=RIGHT per TaxMachine — **these disagree, but we don't need lighting control for our scope**) |
 | 12 – 13 | 2 | padding |
-| 14 | 1 | `0x55` |
-| 15 | 1 | `0xAA` |
+| 14 | 1 | `0x55` (low byte of little-endian `0xAA55`) |
+| 15 | 1 | `0xAA` (high byte of little-endian `0xAA55`) |
 | 16 – 63 | 48 | padding |
 
-This is **out of scope** for our WebHID configurator (time + image only),
-but confirms the `0xAA 0x55` trailer convention used in time-sync.
+Brightness and speed are discrete integer levels from 0 through 5. Application
+builders reject values outside that range rather than silently clamping them.
+RGB channels are integers from 0 through 255 and rainbow is encoded as 0 or 1.
+
+### Known lighting modes
+
+The firmware exposes 20 consecutive values: off (`0x00`), static (`0x01`),
+single-on (`0x02`), single-off (`0x03`), glittering (`0x04`), falling
+(`0x05`), colourful (`0x06`), breath (`0x07`), spectrum (`0x08`), outward
+(`0x09`), scrolling (`0x0A`), rolling (`0x0B`), rotating (`0x0C`), explode
+(`0x0D`), launch (`0x0E`), ripples (`0x0F`), flowing (`0x10`), pulsating
+(`0x11`), tilt (`0x12`), and shuttle (`0x13`).
+
+For the browser transport, Off is sent as SingleOn (`0x02`) with brightness and
+speed 0, and Static is sent as Breath (`0x07`) with speed 0. Hardware comparison
+favored these normalized packets over direct report bytes `0x00` and `0x01`.
+
+### Direction caveat
+
+Both sources agree that left = 0 and right = 3. They disagree on the middle
+values: gohv encodes down = 1 and up = 2, while TaxMachine declares up = 1 and
+down = 2. The TypeScript implementation follows gohv because it contains
+explicit mode-aware direction handling and is the newer direct AK820 Pro
+implementation. Scrolling up/down must be verified on physical hardware before
+the lighting interface is considered complete.
+
+### Supplemental framed custom-RGB transport
+
+The July 2026 AJAZZ web bundle documents a separate command interface on usage
+page `0xFF67`. The web application does not claim AK820 Pro support, so this is
+supplementary evidence for experimental custom RGB rather than the preset
+transport. It is not the feature-report transaction above.
+Reports use an 8-byte header followed by descriptor-sized payload chunks:
+
+| Offset | Field |
+|---|---|
+| 0 | request `0xAA` / response `0x55` |
+| 1 | command |
+| 2 | payload length in this packet |
+| 3–4 | little-endian content address |
+| 5 | reserved |
+| 6 | final-packet flag |
+| 7 | reserved |
+
+Custom RGB commands are GET effect `0x13`, GET table `0x14`, SET effect `0x23`,
+and SET table `0x24`. The custom table is 512 bytes: 128 four-byte records
+`[LED ID, R, G, B]`. Setting custom mode uses the normal 16-byte LED-effect
+content with mode `0x80`, driver byte 4 = `0xFF`, brightness at byte 9, and
+`0xAA 0x55` at bytes 14–15.
+
+The web app discovers report size from the HID descriptor, requires a matching
+response command after every packet (matching the official driver's default), and does not expose the writer if
+the `0xFF67` interface is missing.
+
+Built-in effects also use SET effect `0x23` in the generic web application.
+Its 16-byte content is `[mode, R, G, B, 0xFF, secondary R, secondary G,
+secondary B, color mode, brightness, speed, direction, effect type, 0,
+0xAA, 0x55]`. Physical AK820 Pro testing rejected this as the preferred preset
+path: most modes were acknowledged but remained dark. The app therefore uses
+the hardware-specific feature transaction for all presets.
+
+The generic web UI reads the effect during device initialization, then sends one
+SET when a setting changes. This behavior is retained only as protocol research;
+the AK820 Pro preset operation does not issue these commands.
+
+The AK820 and 820PRO device configurations set `minBrightness = 1`,
+`maxBrightness = 6`, `minSpeed = 1`, and `maxSpeed = 6`. Those bounds apply to
+the framed command payload. They do not replace the AK820 Pro preset packet's
+0–5 bounds; any programmatic level 6 preset input is clamped to 5.
+The official catalogue exposes modes 1–19 without device-specific exclusions,
+mode 0 through its lighting switch, and custom mode 128. Modes 2, 3, and 13–15
+are key-reactive. Modes 6 and 8 have firmware-selected colors. Modes 10, 11,
+12, 16, and 18 expose direction, with mode 10 vertical and the others
+horizontal.
 
 ## Known unknowns (verify against real hardware before shipping)
 

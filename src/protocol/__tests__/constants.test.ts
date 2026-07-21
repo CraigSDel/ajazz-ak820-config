@@ -6,7 +6,6 @@ import {
   SCREEN_HEIGHT,
   CHUNK_SIZE,
   RGB565_FRAME_BYTES,
-  CONTROL_INTERFACE_NUMBER,
   CONTROL_USAGE_PAGE,
   PACKET_LENGTH,
 } from "../constants";
@@ -16,9 +15,8 @@ describe("protocol constants", () => {
     expect(AJAZZ_VENDOR_ID).toBe(0x0c45);
   });
 
-  test("product IDs includes the confirmed wired PID 0x8009", () => {
-    expect(AK820_PRO_PRODUCT_IDS).toContain(0x8009);
-    expect(AK820_PRO_PRODUCT_IDS.length).toBeGreaterThan(0);
+  test("only includes the hardware-confirmed original AK820 Pro PID", () => {
+    expect(AK820_PRO_PRODUCT_IDS).toEqual([0x8009]);
   });
 
   test("screen is 128x128", () => {
@@ -34,8 +32,7 @@ describe("protocol constants", () => {
     expect(CHUNK_SIZE).toBe(4096);
   });
 
-  test("control interface is 3, usage page 0xFF13", () => {
-    expect(CONTROL_INTERFACE_NUMBER).toBe(3);
+  test("control usage page is 0xFF13", () => {
     expect(CONTROL_USAGE_PAGE).toBe(0xff13);
   });
 

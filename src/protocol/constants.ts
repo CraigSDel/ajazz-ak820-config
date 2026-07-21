@@ -4,17 +4,19 @@
 export const AJAZZ_VENDOR_ID = 0x0c45;
 
 /**
- * Known Product IDs that the AK820 Pro may present as.
- * 0x8009 — wired USB, confirmed across all three reference repos.
- * 0xFEFE — 2.4 GHz dongle PID for the sibling AKS075; unverified for AK820 Pro,
- *          included so dongle mode users have a chance of being matched.
+ * Confirmed wired identity of the original AK820 Pro with the 128x128 TFT.
+ * Sonix reuses nearby product IDs across unrelated keyboards, so additional
+ * IDs require an AK820 Pro-specific descriptor or USB capture before inclusion.
  */
-export const AK820_PRO_PRODUCT_IDS: readonly number[] = [0x8009, 0xfefe] as const;
+export const AK820_PRO_PRODUCT_IDS: readonly number[] = [0x8009] as const;
 
 /** TFT screen dimensions. */
 export const SCREEN_WIDTH = 128;
 export const SCREEN_HEIGHT = 128;
 export const RGB565_FRAME_BYTES = SCREEN_WIDTH * SCREEN_HEIGHT * 2;
+
+/** Maximum frame count representable by the legacy TFT upload header. */
+export const MAX_TFT_FRAMES = 255;
 
 /**
  * Image data chunk size for OUT transfers on the data interface.
@@ -32,10 +34,6 @@ export const CHUNK_SIZE = 4096;
  * padding. Keeping 9 to match gohv's per-frame buffer expectation.
  */
 export const CHUNKS_PER_FRAME = 9;
-
-/** HID interface numbers. */
-export const CONTROL_INTERFACE_NUMBER = 3;
-export const DATA_INTERFACE_NUMBER = 2;
 
 /** HID usage pages used to disambiguate the AJAZZ vendor interfaces under WebHID. */
 export const CONTROL_USAGE_PAGE = 0xff13;
