@@ -45,31 +45,31 @@ describe("LightingPanel", () => {
     expect(view.getByText("Built-in multicolor palette")).toBeTruthy();
   });
 
-  test("previews the selected lighting effect before it is applied", async () => {
+  test("identifies the selected numbered effect without simulating its motion", async () => {
     const view = await renderPanel();
     const preview = view.getByLabelText(/Virtual AK820 Pro lighting preview/);
 
-    selectEffect(view, "Cross-Wave");
+    selectEffect(view, "Effect 10");
 
-    expect(preview.classList.contains("is-cross-wave")).toBe(true);
-    expect(preview.getAttribute("aria-label")).toContain("Cross-Wave effect");
+    expect(preview.classList.contains("is-steady")).toBe(true);
+    expect(preview.getAttribute("aria-label")).toContain("Effect 10 effect");
   });
 
   test("shows only the directions supported by the selected mode", async () => {
     const view = await renderPanel();
     expect(view.queryByLabelText("Direction")).toBeNull();
-    selectEffect(view, "Cross-Wave");
+    selectEffect(view, "Effect 10");
     expect(view.getByLabelText("Direction").textContent).toContain("Up");
     expect(view.getByLabelText("Direction").textContent).toContain("Down");
 
-    selectEffect(view, "Rolling Wave");
+    selectEffect(view, "Effect 11");
     expect(view.getByLabelText("Direction").textContent).toContain("Left");
     expect(view.getByLabelText("Direction").textContent).toContain("Right");
 
-    selectEffect(view, "Rotating Wave");
+    selectEffect(view, "Effect 12");
     expect(view.getByLabelText("Direction").textContent).toContain("Left");
 
-    selectEffect(view, "Steady");
+    selectEffect(view, "Effect 1");
     expect(view.queryByLabelText("Direction")).toBeNull();
   });
 
@@ -111,21 +111,21 @@ describe("LightingPanel", () => {
   test("hides controls which the effect metadata marks unsupported", async () => {
     const view = await renderPanel();
     expect(view.queryByLabelText("Speed")).toBeNull();
-    selectEffect(view, "Spectrum Cycle");
+    selectEffect(view, "Effect 8");
     expect(view.queryByLabelText("Lighting color")).toBeNull();
     expect(view.queryByText("Built-in multicolor palette")).toBeNull();
     expect(view.getByLabelText("Speed")).toBeTruthy();
   });
 
-  test("reactive previews wait for a key press and originate from that key", async () => {
+  test("does not imply reactive behavior in the preview", async () => {
     const view = await renderPanel();
-    selectEffect(view, "Key Press — Ripple");
+    selectEffect(view, "Effect 15");
     const preview = view.getByLabelText(/Virtual AK820 Pro lighting preview/);
     expect(preview.classList.contains("has-preview-trigger")).toBe(false);
     const key = preview.querySelector(".keyboard-key") as HTMLElement;
     fireEvent.pointerDown(key);
-    expect(preview.classList.contains("has-preview-trigger")).toBe(true);
-    expect(key.classList.contains("is-preview-origin")).toBe(true);
+    expect(preview.classList.contains("has-preview-trigger")).toBe(false);
+    expect(key.classList.contains("is-preview-origin")).toBe(false);
   });
 
   test("submits lighting through the device transaction", async () => {
@@ -172,10 +172,9 @@ describe("LightingPanel", () => {
     expect(controller.sent[2].bytes[7]).toBe(1);
     await waitFor(() => expect(getByText("Sleep timeout applied")).toBeTruthy());
   });
-
 });
 
 function selectEffect(view: Awaited<ReturnType<typeof renderPanel>>, name: string) {
   fireEvent.click(view.getByLabelText("Lighting effect"));
-  fireEvent.click(view.getByRole("button", { name: new RegExp(`^${name}`) }));
+  fireEvent.click(view.getByRole("button", { name }));
 }

@@ -9,6 +9,14 @@ describe("AK820 lighting effect metadata", () => {
     );
   });
 
+  test("uses neutral protocol-number labels and non-animated previews", () => {
+    expect(LIGHTING_EFFECTS.map((effect) => effect.name)).toEqual([
+      "Off",
+      ...Array.from({ length: 19 }, (_, index) => `Effect ${index + 1}`),
+    ]);
+    expect(LIGHTING_EFFECTS.slice(1).every((effect) => effect.preview === "steady")).toBe(true);
+  });
+
   test("fixed-palette effects do not advertise custom colors", () => {
     expect(effectForMode(LightingMode.Colourful).supportsColor).toBe(false);
     expect(effectForMode(LightingMode.Spectrum).supportsColor).toBe(false);
@@ -28,18 +36,6 @@ describe("AK820 lighting effect metadata", () => {
       LightingMode.Rotating,
       LightingMode.Flowing,
       LightingMode.Tilt,
-    ]);
-  });
-
-  test("identifies all key-reactive modes", () => {
-    expect(
-      LIGHTING_EFFECTS.filter((effect) => effect.reactive).map((effect) => effect.mode),
-    ).toEqual([
-      LightingMode.SingleOn,
-      LightingMode.SingleOff,
-      LightingMode.Explode,
-      LightingMode.Launch,
-      LightingMode.Ripples,
     ]);
   });
 });

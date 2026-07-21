@@ -39,13 +39,13 @@ full sweep would add noise rather than isolate the transport problem.
 
 1. Open the **Testing** workspace. If it is hidden, set
    `VITE_SHOW_HARDWARE_TESTING=true` and restart or rebuild.
-2. Apply the current test effect and observe the physical keyboard for at least
-   one second.
+2. The current effect applies automatically. Observe the physical keyboard for
+   at least one second.
 3. For reactive modes, press several physical keys.
-4. Record Works, Wrong effect, No lighting, or Connection error. Use Connection
-   error only for an explicit application error.
-5. Click **Select and apply next untested effect** until all 20 are recorded.
-6. Copy the generated report.
+4. Record Works, Wrong effect, or No lighting. An explicit application error is
+   shown on screen and should be resolved before recording a physical result.
+5. Each result copies the full report to the clipboard and automatically applies
+   the next untested effect. Continue until all 20 are recorded.
 
 Pass: every mode has a physical result. An accepted command alone is not a pass.
 

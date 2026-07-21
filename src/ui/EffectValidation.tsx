@@ -31,12 +31,15 @@ export function EffectValidation({
   mode,
   canApply,
   onSelectAndApply,
+  applyStatus,
 }: {
   mode: LightingMode;
   canApply: boolean;
   onSelectAndApply(mode: LightingMode): Promise<void>;
+  applyStatus: string | null;
 }) {
   const [observations, setObservations] = useState<Observations>(initialObservations);
+  const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const selected = effectForMode(mode);
   const observation = observations[mode];
   const tested = Object.values(observations).filter(({ result }) => result !== "untested").length;
@@ -47,11 +50,13 @@ export function EffectValidation({
     localStorage.setItem(STORAGE_KEY, JSON.stringify(observations));
   }, [observations]);
 
-  const update = (change: Partial<Observation>) =>
+  const update = (change: Partial<Observation>) => {
+    setCopyStatus(null);
     setObservations((current) => ({
       ...current,
       [mode]: { ...current[mode], ...change },
     }));
+  };
 
   const next = async () => {
     const start = LIGHTING_EFFECTS.findIndex((effect) => effect.mode === mode);
@@ -63,8 +68,18 @@ export function EffectValidation({
   };
 
   const recordAndContinue = async (result: Exclude<Result, "untested">) => {
-    update({ result });
-    if (result !== "connection-error" && canApply) await next();
+    const nextObservations = {
+      ...observations,
+      [mode]: { ...observations[mode], result },
+    };
+    setObservations(nextObservations);
+    try {
+      await navigator.clipboard.writeText(buildEffectReport(nextObservations));
+      setCopyStatus("Result saved and report copied to clipboard.");
+    } catch {
+      setCopyStatus("Result saved. Clipboard unavailable; copy the report below.");
+    }
+    if (canApply) await next();
   };
 
   return (
@@ -72,7 +87,7 @@ export function EffectValidation({
       <div className="validation-heading">
         <div>
           <p className="eyebrow">Test runner</p>
-          <h3 id="test-runner-title">What does the keyboard show?</h3>
+          <h3 id="test-runner-title">{selected.name}</h3>
         </div>
         <strong className="validation-count">
           {tested}/{LIGHTING_EFFECTS.length}
@@ -89,9 +104,13 @@ export function EffectValidation({
         <span style={{ width: `${(tested / LIGHTING_EFFECTS.length) * 100}%` }} />
       </div>
       <p className="validation-instruction">
-        Observe <strong>{selected.name}</strong> · mode {mode}.
-        {selected.reactive ? " Press several physical keys first." : ""}
+        Mode {mode} · observe the keyboard, then record what it shows.
       </p>
+      {applyStatus && (
+        <p className="lighting-feedback" role="status" aria-live="polite">
+          {applyStatus}
+        </p>
+      )}
       <label className="validation-note">
         Note · required for Wrong effect
         <input
@@ -101,11 +120,13 @@ export function EffectValidation({
         />
       </label>
       <fieldset className="validation-results">
-        <legend>Save result and continue</legend>
+        <legend>Save, copy report and continue</legend>
         {(["works", "wrong-effect", "no-light"] as const).map((result) => (
           <button
             type="button"
-            className={observation.result === result ? `result-${result} is-active` : `result-${result}`}
+            className={
+              observation.result === result ? `result-${result} is-active` : `result-${result}`
+            }
             aria-pressed={observation.result === result}
             disabled={!canApply || (result === "wrong-effect" && !observation.note.trim())}
             onClick={() => recordAndContinue(result)}
@@ -116,22 +137,15 @@ export function EffectValidation({
           </button>
         ))}
       </fieldset>
-      <div className="validation-secondary-actions">
-        <button type="button" onClick={() => update({ result: "connection-error" })}>
-          Connection error
-        </button>
-        <button
-          type="button"
-          disabled={!canApply || remaining === 0}
-          onClick={next}
-        >
-          Skip for now
-        </button>
-      </div>
-      <details className="validation-report">
-        <summary>View report · saved in this browser</summary>
+      {copyStatus && (
+        <p className="validation-copy-status" role="status" aria-live="polite">
+          {copyStatus}
+        </p>
+      )}
+      <details className="validation-report" open={remaining === 0}>
+        <summary>Report · saved in this browser</summary>
         <label>
-          Copy this report when testing is complete
+          Report copied after every result
           <textarea className="effect-report" readOnly value={report} rows={12} />
         </label>
       </details>

@@ -1,26 +1,6 @@
 import { LightingDirection, LightingMode, type LightingMode as Mode } from "../protocol/lighting";
 
-export type EffectPreview =
-  | "off"
-  | "steady"
-  | "reactive-on"
-  | "reactive-off"
-  | "twinkle"
-  | "snow"
-  | "bloom"
-  | "breath"
-  | "spectrum"
-  | "fountain"
-  | "cross-wave"
-  | "rolling-wave"
-  | "rotating-wave"
-  | "burst"
-  | "dual-trail"
-  | "ripple"
-  | "flow"
-  | "layered-wave"
-  | "diagonal-rain"
-  | "shuttle";
+export type EffectPreview = "off" | "steady";
 
 export type LightingEffect = {
   mode: Mode;
@@ -31,7 +11,6 @@ export type LightingEffect = {
   supportsPalette: boolean;
   supportsSpeed: boolean;
   directions: readonly (readonly [LightingDirection, string])[];
-  reactive: boolean;
 };
 
 const NONE = [] as const;
@@ -45,189 +24,46 @@ const VERTICAL = [
 ] as const;
 
 /**
- * AK820-family effect metadata, reconciled with the current official AJAZZ
- * driver catalogue. Names describe observed intent instead of literal,
- * ambiguous translations. Protocol IDs remain stable.
+ * Keep effect labels tied to their protocol IDs. The physical animation for a
+ * given ID varies across AK820 firmware, so the UI deliberately avoids naming
+ * or simulating behavior that may not match the connected keyboard.
  */
+type EffectOverride = Partial<
+  Pick<LightingEffect, "supportsColor" | "supportsPalette" | "directions">
+>;
+
+/** Only firmware behavior that changes which controls the UI should expose. */
+const EFFECT_OVERRIDES: Readonly<Partial<Record<Mode, EffectOverride>>> = {
+  [LightingMode.Colourful]: { supportsColor: false, supportsPalette: false },
+  [LightingMode.Spectrum]: { supportsColor: false, supportsPalette: false },
+  [LightingMode.Scrolling]: { directions: VERTICAL },
+  [LightingMode.Rolling]: { directions: HORIZONTAL },
+  [LightingMode.Rotating]: { directions: HORIZONTAL },
+  [LightingMode.Flowing]: { directions: HORIZONTAL },
+  [LightingMode.Tilt]: { directions: HORIZONTAL },
+};
+
+const BUILT_IN_EFFECT_COUNT = 19;
+
 export const LIGHTING_EFFECTS: readonly LightingEffect[] = [
   effect(LightingMode.Off, "Off", "Turn all key lighting off.", "off", false, false, NONE),
-  effect(
-    LightingMode.Static,
-    "Steady",
-    "A constant whole-keyboard color.",
-    "steady",
-    true,
-    true,
-    NONE,
-  ),
-  effect(
-    LightingMode.SingleOn,
-    "Key Press — Light Up",
-    "Pressed keys light individually.",
-    "reactive-on",
-    true,
-    true,
-    NONE,
-    true,
-  ),
-  effect(
-    LightingMode.SingleOff,
-    "Key Press — Fade Out",
-    "Pressed keys fade from the selected color.",
-    "reactive-off",
-    true,
-    true,
-    NONE,
-    true,
-  ),
-  effect(
-    LightingMode.Glittering,
-    "Twinkling Stars",
-    "Random keys sparkle across the board.",
-    "twinkle",
-    true,
-    true,
-    NONE,
-  ),
-  effect(
-    LightingMode.Falling,
-    "Falling Snow",
-    "Points of light fall down the keyboard.",
-    "snow",
-    true,
-    true,
-    NONE,
-  ),
-  effect(
-    LightingMode.Colourful,
-    "Color Bloom",
-    "A fixed multicolor floral pattern.",
-    "bloom",
-    false,
-    false,
-    NONE,
-  ),
-  effect(
-    LightingMode.Breath,
-    "Breathing",
-    "The whole keyboard fades in and out.",
-    "breath",
-    true,
-    true,
-    NONE,
-  ),
-  effect(
-    LightingMode.Spectrum,
-    "Spectrum Cycle",
-    "The keyboard cycles through the color spectrum.",
-    "spectrum",
-    false,
-    false,
-    NONE,
-  ),
-  effect(
-    LightingMode.Outward,
-    "Color Fountain",
-    "Color rises and spreads outward from the center.",
-    "fountain",
-    true,
-    true,
-    NONE,
-  ),
-  effect(
-    LightingMode.Scrolling,
-    "Cross-Wave",
-    "Bands travel vertically across the keyboard.",
-    "cross-wave",
-    true,
-    true,
-    VERTICAL,
-  ),
-  effect(
-    LightingMode.Rolling,
-    "Rolling Wave",
-    "A horizontal wave rolls across the keys.",
-    "rolling-wave",
-    true,
-    true,
-    HORIZONTAL,
-  ),
-  effect(
-    LightingMode.Rotating,
-    "Rotating Wave",
-    "A band rotates around the keyboard.",
-    "rotating-wave",
-    true,
-    true,
-    HORIZONTAL,
-  ),
-  effect(
-    LightingMode.Explode,
-    "Key Press — Burst",
-    "Pressed keys trigger an immediate burst.",
-    "burst",
-    true,
-    true,
-    NONE,
-    true,
-  ),
-  effect(
-    LightingMode.Launch,
-    "Key Press — Dual Trail",
-    "Pressed keys launch light in two directions.",
-    "dual-trail",
-    true,
-    true,
-    NONE,
-    true,
-  ),
-  effect(
-    LightingMode.Ripples,
-    "Key Press — Ripple",
-    "Pressed keys emit an expanding ripple.",
-    "ripple",
-    true,
-    true,
-    NONE,
-    true,
-  ),
-  effect(
-    LightingMode.Flowing,
-    "Continuous Flow",
-    "A continuous horizontal stream crosses the board.",
-    "flow",
-    true,
-    true,
-    HORIZONTAL,
-  ),
-  effect(
-    LightingMode.Pulsating,
-    "Layered Wave",
-    "Overlapping waves rise and fall across the keys.",
-    "layered-wave",
-    true,
-    true,
-    NONE,
-  ),
-  effect(
-    LightingMode.Tilt,
-    "Diagonal Rain",
-    "Diagonal streaks move across the keyboard.",
-    "diagonal-rain",
-    true,
-    true,
-    HORIZONTAL,
-  ),
-  effect(
-    LightingMode.Shuttle,
-    "Shuttle",
-    "A light band travels back and forth.",
-    "shuttle",
-    true,
-    true,
-    NONE,
+  ...Array.from({ length: BUILT_IN_EFFECT_COUNT }, (_, index) =>
+    numberedEffect((index + 1) as Mode),
   ),
 ];
+
+function numberedEffect(mode: Mode): LightingEffect {
+  const override = EFFECT_OVERRIDES[mode];
+  return effect(
+    mode,
+    `Effect ${mode}`,
+    `Keyboard lighting effect ${mode}.`,
+    "steady",
+    override?.supportsColor ?? true,
+    override?.supportsPalette ?? true,
+    override?.directions ?? NONE,
+  );
+}
 
 function effect(
   mode: Mode,
@@ -237,7 +73,6 @@ function effect(
   supportsColor: boolean,
   supportsPalette: boolean,
   directions: LightingEffect["directions"],
-  reactive = false,
 ): LightingEffect {
   return {
     mode,
@@ -248,7 +83,6 @@ function effect(
     supportsPalette,
     supportsSpeed: mode !== LightingMode.Off && mode !== LightingMode.Static,
     directions,
-    reactive,
   };
 }
 

@@ -80,7 +80,7 @@ export function LightingPanel() {
         <div>
           <p className="eyebrow">Lighting workspace</p>
           <p className="lighting-page-copy">
-            Preview an effect or paint an exact static layout on the same keyboard.
+            Choose a numbered effect or paint an exact static layout on the same keyboard.
           </p>
         </div>
         <fieldset className="lighting-mode-switch">
@@ -118,9 +118,8 @@ export function LightingPanel() {
       <p className="keyboard-context">
         {editingMode === "effects" ? (
           <>
-            Approximate browser preview
-            {selectedEffect.reactive ? " · press preview keys to trigger the effect" : ""}
-            {" · changes are sent only when you apply them."}
+            Color and brightness preview only · effect motion is shown on the physical keyboard ·
+            changes are sent only when you apply them.
           </>
         ) : (
           "Click or drag to paint · use arrow keys to move · apply when your layout is ready."
@@ -132,18 +131,13 @@ export function LightingPanel() {
             <div className="settings-card-heading">
               <div>
                 <p className="eyebrow">Keyboard effect</p>
-                <h3>Choose a lighting style</h3>
+                <h3>Choose an effect</h3>
               </div>
               <span className={`draft-state ${hasChanges ? "is-dirty" : "is-saved"}`}>
                 {hasChanges ? "Not applied" : "Applied"}
               </span>
             </div>
             <EffectPicker selected={selectedEffect} onChange={changeMode} />
-            {selectedEffect.reactive && (
-              <p className="effect-behavior" role="note">
-                Reactive effect — press a key after applying it to see the animation.
-              </p>
-            )}
             {!selectedEffect.supportsColor && config.mode !== LightingMode.Off && (
               <p className="effect-behavior" role="note">
                 Fixed-palette effect — this animation chooses its own colors.
@@ -324,6 +318,7 @@ function EffectPicker({
           {LIGHTING_EFFECTS.map((effect) => (
             <button
               type="button"
+              aria-label={effect.name}
               className={
                 effect.mode === selected.mode ? "effect-option is-active" : "effect-option"
               }

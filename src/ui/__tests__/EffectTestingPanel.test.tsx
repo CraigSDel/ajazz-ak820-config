@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 // biome-ignore lint/correctness/noUnusedImports: required by this test file's classic JSX transform
 import React from "react";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { DeviceSessionProvider } from "../../device/DeviceSession";
 import { MockDeviceController } from "../../device/mock-controller";
 import { LightingMode } from "../../protocol/lighting";
@@ -11,6 +11,16 @@ import { LightingPanel } from "../LightingPanel";
 afterEach(cleanup);
 
 describe("EffectTestingPanel", () => {
+  const clipboardWrite = vi.fn().mockResolvedValue(undefined);
+
+  beforeEach(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: clipboardWrite },
+    });
+    clipboardWrite.mockClear();
+  });
+
   test("uses the exact same lighting transaction as the Lighting workspace", async () => {
     localStorage.clear();
     const lightingController = new MockDeviceController();
@@ -26,12 +36,11 @@ describe("EffectTestingPanel", () => {
 
     const testingController = new MockDeviceController();
     await testingController.connect();
-    const testing = render(
+    render(
       <DeviceSessionProvider controller={testingController}>
         <EffectTestingPanel />
       </DeviceSessionProvider>,
     );
-    fireEvent.click(testing.getByRole("button", { name: "Start test" }));
     await waitFor(() => expect(testingController.sent).toHaveLength(8));
 
     expect(
@@ -54,13 +63,18 @@ describe("EffectTestingPanel", () => {
     fireEvent.change(view.getByLabelText("Note · required for Wrong effect"), {
       target: { value: "steady red" },
     });
-    fireEvent.click(view.getByRole("button", { name: /Works/ }));
+    const works = view.getByRole("button", { name: /Works/ }) as HTMLButtonElement;
+    await waitFor(() => expect(works.disabled).toBe(false));
+    fireEvent.click(works);
 
-    const report = view.getByLabelText(/Copy this report/) as HTMLTextAreaElement;
-    expect(report.value).toContain("Mode 1 / Steady: Works — steady red");
+    const report = view.getByLabelText(/Report copied after every result/) as HTMLTextAreaElement;
+    await waitFor(() =>
+      expect(report.value).toContain("Mode 1 / Effect 1: Works — steady red"),
+    );
+    await waitFor(() => expect(clipboardWrite).toHaveBeenCalledWith(report.value));
 
-    await waitFor(() => expect(view.getByRole("heading", { name: "Key Press — Light Up" })).toBeTruthy());
-    await waitFor(() => expect(controller.sent).toHaveLength(8));
+    await waitFor(() => expect(view.getByRole("heading", { name: "Effect 2" })).toBeTruthy());
+    await waitFor(() => expect(controller.sent).toHaveLength(16));
     expect(controller.sent.at(-2)?.reportId).toBe(LightingMode.SingleOn);
   });
 });

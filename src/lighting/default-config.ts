@@ -1,8 +1,4 @@
-import {
-  type LightingConfig,
-  LightingDirection,
-  LightingMode,
-} from "../protocol/lighting";
+import { type LightingConfig, LightingDirection, LightingMode } from "../protocol/lighting";
 
 /** Shared baseline used by both normal lighting and hardware validation. */
 export const DEFAULT_LIGHTING_CONFIG: LightingConfig = {
