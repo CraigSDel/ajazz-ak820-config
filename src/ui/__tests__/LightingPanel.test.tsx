@@ -37,6 +37,14 @@ describe("LightingPanel", () => {
     ).toContain("#0a84ff");
   });
 
+  test("uses the official 1 through 6 effect levels and allows RGB steady lighting", async () => {
+    const view = await renderPanel();
+    const brightness = view.getByLabelText("Brightness") as HTMLInputElement;
+    expect(brightness.min).toBe("1");
+    expect(brightness.max).toBe("6");
+    expect(view.getByText("Built-in multicolor palette")).toBeTruthy();
+  });
+
   test("previews the selected lighting effect before it is applied", async () => {
     const view = await renderPanel();
     const preview = view.getByLabelText(/Virtual AK820 Pro lighting preview/);
@@ -116,9 +124,9 @@ describe("LightingPanel", () => {
 
   test("submits lighting through the device transaction", async () => {
     const { controller, getByRole, getByText } = await renderPanel();
-    fireEvent.click(getByRole("button", { name: "Apply lighting" }));
+    fireEvent.click(getByRole("button", { name: "Apply to keyboard" }));
     expect(
-      (getByRole("button", { name: "Applying lighting…" }) as HTMLButtonElement).disabled,
+      (getByRole("button", { name: "Applying…" }) as HTMLButtonElement).disabled,
     ).toBe(true);
     expect(getByRole("status").textContent).toBe("Applying lighting…");
     await waitFor(() => expect(controller.sent).toHaveLength(4));
@@ -128,8 +136,26 @@ describe("LightingPanel", () => {
   test("displays a lighting transfer failure", async () => {
     const controller = new MockDeviceController({ failSendAt: 1 });
     const view = await renderPanel(controller);
-    fireEvent.click(view.getByRole("button", { name: "Apply lighting" }));
+    fireEvent.click(view.getByRole("button", { name: "Apply to keyboard" }));
     await waitFor(() => expect(view.getByRole("status").textContent).toMatch(/Transfer failed/));
+  });
+
+  test("marks changes as applied and re-enables apply after another edit", async () => {
+    const view = await renderPanel();
+    fireEvent.click(view.getByRole("button", { name: "Apply to keyboard" }));
+    await waitFor(() => expect(view.getByText("Lighting applied")).toBeTruthy());
+    expect((view.getByRole("button", { name: "Applied" }) as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.change(view.getByLabelText("Brightness"), { target: { value: "4" } });
+    expect(view.getByRole("button", { name: "Apply to keyboard" })).toBeTruthy();
+    expect(view.getByText("Not applied")).toBeTruthy();
+  });
+
+  test("hides irrelevant controls when lighting is off", async () => {
+    const view = await renderPanel();
+    selectEffect(view, "Off");
+    expect(view.queryByLabelText("Brightness")).toBeNull();
+    expect(view.queryByLabelText("Lighting color")).toBeNull();
   });
 
   test("submits the selected sleep timeout", async () => {

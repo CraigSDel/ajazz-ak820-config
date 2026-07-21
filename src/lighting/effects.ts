@@ -57,7 +57,7 @@ export const LIGHTING_EFFECTS: readonly LightingEffect[] = [
     "A constant whole-keyboard color.",
     "steady",
     true,
-    false,
+    true,
     NONE,
   ),
   effect(

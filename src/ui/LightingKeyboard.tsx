@@ -17,8 +17,7 @@ type EffectKeyboardProps = {
 type PerKeyKeyboardProps = {
   mode: "per-key";
   colors: readonly RGBColor[];
-  selection: ReadonlySet<number>;
-  onKey: (ledId: number, additive: boolean) => void;
+  onKey: (ledId: number) => void;
   onPaintKey: (ledId: number) => void;
 };
 
@@ -131,7 +130,7 @@ export function LightingKeyboard(props: LightingKeyboardProps) {
               ) : (
                 <button
                   type="button"
-                  className={`keyboard-key${perKey && props.selection.has(item.ledId) ? " is-selected" : ""}${!perKey && trigger?.row === rowIndex && trigger.column === columnIndex ? " is-preview-origin" : ""}`}
+                  className={`keyboard-key${!perKey && trigger?.row === rowIndex && trigger.column === columnIndex ? " is-preview-origin" : ""}`}
                   style={
                     {
                       flexGrow: item.width ?? 1,
@@ -145,7 +144,6 @@ export function LightingKeyboard(props: LightingKeyboardProps) {
                     } as CSSProperties
                   }
                   aria-hidden={perKey ? undefined : true}
-                  aria-pressed={perKey ? props.selection.has(item.ledId) : undefined}
                   aria-label={perKey ? `${item.label}, LED ${item.ledId}` : undefined}
                   tabIndex={perKey && focusedId === item.ledId ? 0 : -1}
                   ref={(element) => {
@@ -154,13 +152,7 @@ export function LightingKeyboard(props: LightingKeyboardProps) {
                   }}
                   onFocus={() => perKey && setFocusedId(item.ledId as number)}
                   onKeyDown={(event) => onKeyDown(event, item.ledId as number)}
-                  onClick={(event) =>
-                    perKey &&
-                    props.onKey(
-                      item.ledId as number,
-                      event.shiftKey || event.ctrlKey || event.metaKey,
-                    )
-                  }
+                  onClick={() => perKey && props.onKey(item.ledId as number)}
                   onPointerDown={() =>
                     !perKey &&
                     effect?.reactive &&

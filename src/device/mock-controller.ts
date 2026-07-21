@@ -1,5 +1,9 @@
 import type { ReportMessage } from "../protocol/types";
-import type { CommandRequest } from "../protocol/custom-lighting";
+import {
+  GET_LED_EFFECT_COMMAND,
+  SET_LED_EFFECT_COMMAND,
+  type CommandRequest,
+} from "../protocol/custom-lighting";
 import { DeviceFailure } from "./errors";
 import type { DeviceController, SentReport } from "./types";
 
@@ -10,6 +14,7 @@ export class MockDeviceController implements DeviceController {
   private connected = false;
   private disconnectHandlers = new Set<() => void>();
   private sendCount = 0;
+  private ledEffectData = new Uint8Array(16);
   private readonly options: {
     failSendAt?: number;
     healthCheckResponds?: boolean;
@@ -17,6 +22,7 @@ export class MockDeviceController implements DeviceController {
     commandTransport?: boolean;
     commandResponse?: Uint8Array;
     productId?: number;
+    ignoreLedEffectWrites?: boolean;
   };
 
   constructor(
@@ -27,6 +33,7 @@ export class MockDeviceController implements DeviceController {
       commandTransport?: boolean;
       commandResponse?: Uint8Array;
       productId?: number;
+      ignoreLedEffectWrites?: boolean;
     } = {},
   ) {
     this.options = options;
@@ -98,6 +105,16 @@ export class MockDeviceController implements DeviceController {
       ...request,
       data: request.data ? new Uint8Array(request.data) : undefined,
     });
+    if (
+      request.command === SET_LED_EFFECT_COMMAND &&
+      request.data &&
+      !this.options.ignoreLedEffectWrites
+    ) {
+      this.ledEffectData = new Uint8Array(request.data);
+    }
+    if (request.command === GET_LED_EFFECT_COMMAND) {
+      return new Uint8Array(this.ledEffectData);
+    }
     return this.options.commandResponse
       ? new Uint8Array(this.options.commandResponse)
       : new Uint8Array(request.contentSize);

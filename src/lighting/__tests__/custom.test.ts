@@ -6,7 +6,12 @@ import {
   SET_CUSTOM_LED_COMMAND,
   SET_LED_EFFECT_COMMAND,
 } from "../../protocol/custom-lighting";
-import { applyCustomLighting, canUseCustomLighting, restoreCustomLighting } from "../custom";
+import {
+  applyCustomLighting,
+  canUseCustomLighting,
+  readCustomLighting,
+  restoreCustomLighting,
+} from "../custom";
 
 describe("custom lighting operations", () => {
   test("is capability-gated", async () => {
@@ -30,6 +35,28 @@ describe("custom lighting operations", () => {
     expect(controller.commandRequests[2].data?.[0]).toBe(128);
     expect([...(controller.commandRequests[3].data?.slice(0, 4) ?? [])]).toEqual([0, 12, 34, 56]);
     expect(backup.colors).toHaveLength(128);
+  });
+
+  test("does not overlap effect and custom-table backup commands", async () => {
+    const controller = new MockDeviceController({ commandTransport: true });
+    await controller.connect();
+    const exchange = controller.exchangeCommand.bind(controller);
+    let active = 0;
+    let overlapped = false;
+    controller.exchangeCommand = async (request) => {
+      active += 1;
+      overlapped ||= active > 1;
+      await Promise.resolve();
+      try {
+        return await exchange(request);
+      } finally {
+        active -= 1;
+      }
+    };
+
+    await readCustomLighting(controller);
+
+    expect(overlapped).toBe(false);
   });
 
   test("restores the color table before the previous effect", async () => {

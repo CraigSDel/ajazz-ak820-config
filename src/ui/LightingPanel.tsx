@@ -36,14 +36,17 @@ const COLOR_PRESETS = [
 export function LightingPanel() {
   const { controller, connected, activeOperation, runOperation } = useDeviceSession();
   const [config, setConfig] = useState<LightingConfig>(DEFAULT_CONFIG);
+  const [appliedConfig, setAppliedConfig] = useState<LightingConfig | null>(null);
   const [sleepTime, setSleepTime] = useState<SleepTime>(LightingSleepTime.Never);
   const [status, setStatus] = useState<string | null>(null);
+  const [sleepStatus, setSleepStatus] = useState<string | null>(null);
   const [editingMode, setEditingMode] = useState<"effects" | "per-key">("effects");
   const directionOptions = useMemo(() => directionsForMode(config.mode), [config.mode]);
   const selectedEffect = effectForMode(config.mode);
   const customEditor = useCustomLightingEditor();
   const busy = activeOperation !== null;
   const applyingLighting = activeOperation === "lighting";
+  const hasChanges = !appliedConfig || !sameLightingConfig(config, appliedConfig);
   const keyboardProps: LightingKeyboardProps =
     editingMode === "effects"
       ? { mode: "effect", config }
@@ -65,6 +68,7 @@ export function LightingPanel() {
     setStatus("Applying lighting…");
     try {
       await runOperation("lighting", () => setLighting(controller, config));
+      setAppliedConfig({ ...config, color: { ...config.color } });
       setStatus("Lighting applied");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Lighting update failed");
@@ -72,12 +76,12 @@ export function LightingPanel() {
   };
 
   const applySleep = async () => {
-    setStatus("Applying sleep timeout…");
+    setSleepStatus("Applying sleep timeout…");
     try {
       await runOperation("lighting sleep", () => setLightingSleepTime(controller, sleepTime));
-      setStatus("Sleep timeout applied");
+      setSleepStatus("Sleep timeout applied");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Sleep timeout update failed");
+      setSleepStatus(error instanceof Error ? error.message : "Sleep timeout update failed");
     }
   };
 
@@ -124,8 +128,27 @@ export function LightingPanel() {
       </p>
       {editingMode === "effects" ? (
         <div className="lighting-editor">
-          <fieldset className="lighting-controls" disabled={busy}>
+          <fieldset className="lighting-controls settings-card" disabled={busy}>
+            <div className="settings-card-heading">
+              <div>
+                <p className="eyebrow">Keyboard effect</p>
+                <h3>Choose a lighting style</h3>
+              </div>
+              <span className={`draft-state ${hasChanges ? "is-dirty" : "is-saved"}`}>
+                {hasChanges ? "Not applied" : "Applied"}
+              </span>
+            </div>
             <EffectPicker selected={selectedEffect} onChange={changeMode} />
+            {selectedEffect.reactive && (
+              <p className="effect-behavior" role="note">
+                Reactive effect — press a key after applying it to see the animation.
+              </p>
+            )}
+            {!selectedEffect.supportsColor && config.mode !== LightingMode.Off && (
+              <p className="effect-behavior" role="note">
+                Fixed-palette effect — this animation chooses its own colors.
+              </p>
+            )}
             {selectedEffect.supportsColor && (
               <fieldset className="control-color">
                 <legend>Color</legend>
@@ -168,11 +191,13 @@ export function LightingPanel() {
                 Built-in multicolor palette
               </label>
             )}
-            <LevelSelect
-              label="Brightness"
-              value={config.brightness}
-              onChange={(value) => updateConfig("brightness", value)}
-            />
+            {config.mode !== LightingMode.Off && (
+              <LevelSelect
+                label="Brightness"
+                value={config.brightness}
+                onChange={(value) => updateConfig("brightness", value)}
+              />
+            )}
             {selectedEffect.supportsSpeed && (
               <LevelSelect
                 label="Speed"
@@ -198,24 +223,34 @@ export function LightingPanel() {
                 </select>
               </label>
             )}
-            <button
-              type="button"
-              className="primary-action"
-              disabled={!connected || busy}
-              aria-busy={applyingLighting}
-              onClick={applyLighting}
-            >
-              {applyingLighting ? "Applying lighting…" : "Apply lighting"}
-            </button>
+            <div className="lighting-apply-bar">
+              <span>
+                {connected
+                  ? hasChanges
+                    ? "Your preview has changes that are not on the keyboard yet."
+                    : "The keyboard is using these settings."
+                  : "Connect your keyboard to send these settings."}
+              </span>
+              <button
+                type="button"
+                className="primary-action"
+                disabled={!connected || busy || !hasChanges}
+                aria-busy={applyingLighting}
+                onClick={applyLighting}
+              >
+                {applyingLighting ? "Applying…" : hasChanges ? "Apply to keyboard" : "Applied"}
+              </button>
+            </div>
+            {status && (
+              <p className="lighting-feedback settings-card-feedback" role="status" aria-live="polite">
+                {status}
+              </p>
+            )}
           </fieldset>
-          {status && (
-            <p className="lighting-feedback" role="status" aria-live="polite">
-              {status}
-            </p>
-          )}
 
           <div className="subsection sleep-section">
-            <h3>Sleep timeout</h3>
+            <p className="eyebrow">Power saving</p>
+            <h3>Lighting sleep</h3>
             <label>
               Turn lighting off after
               <select
@@ -233,11 +268,29 @@ export function LightingPanel() {
             <button type="button" disabled={!connected || busy} onClick={applySleep}>
               Apply sleep timeout
             </button>
+            {sleepStatus && (
+              <p className="lighting-feedback" role="status" aria-live="polite">
+                {sleepStatus}
+              </p>
+            )}
           </div>
         </div>
       ) : null}
       {editingMode === "per-key" ? customEditor.controls : null}
     </section>
+  );
+}
+
+function sameLightingConfig(a: LightingConfig, b: LightingConfig): boolean {
+  return (
+    a.mode === b.mode &&
+    a.color.red === b.color.red &&
+    a.color.green === b.color.green &&
+    a.color.blue === b.color.blue &&
+    a.rainbow === b.rainbow &&
+    a.brightness === b.brightness &&
+    a.speed === b.speed &&
+    a.direction === b.direction
   );
 }
 
@@ -314,8 +367,8 @@ function LevelSelect({
       <input
         aria-label={label}
         type="range"
-        min={0}
-        max={5}
+        min={1}
+        max={6}
         step={1}
         value={value}
         onChange={(event) => onChange(Number(event.target.value) as LightingLevel)}

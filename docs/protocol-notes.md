@@ -806,6 +806,23 @@ The web app discovers report size from the HID descriptor, requires a matching
 response command after every packet (matching the official driver's default), and does not expose the writer if
 the `0xFF67` interface is missing.
 
+Built-in effects also use SET effect `0x23` in the current official web driver.
+Its 16-byte content is `[mode, R, G, B, 0xFF, secondary R, secondary G,
+secondary B, color mode, brightness, speed, direction, effect type, 0,
+0xAA, 0x55]`. This path is preferred in WebHID because the older feature-report
+transaction relies on mode-valued report IDs that may not be declared by the
+device descriptor; Chromium can reject or rewrite those reports.
+
+The AK820 and 820PRO device configurations set `minBrightness = 1`,
+`maxBrightness = 6`, `minSpeed = 1`, and `maxSpeed = 6`. Those bounds apply to
+the framed command payload. They do not replace the legacy feature packet's
+0–5 bounds; level 6 is clamped to 5 when the compatibility transaction is used.
+The official catalogue exposes modes 1–19 without device-specific exclusions,
+mode 0 through its lighting switch, and custom mode 128. Modes 2, 3, and 13–15
+are key-reactive. Modes 6 and 8 have firmware-selected colors. Modes 10, 11,
+12, 16, and 18 expose direction, with mode 10 vertical and the others
+horizontal.
+
 ## Known unknowns (verify against real hardware before shipping)
 
 Each item lists what was searched and why it couldn't be resolved from source

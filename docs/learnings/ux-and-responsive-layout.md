@@ -67,7 +67,7 @@ and quick swatches. Rounded containers and restrained shadows distinguish these
 high-frequency visual controls from generic administrative form fields.
 
 Device continuity matters as much as visual similarity. Corsair's documented
-workflow uses the device preview itself for zone selection, while
+workflow uses the device preview itself for direct interaction, while
 [SignalRGB's setup flow](https://docs.signalrgb.com/quick-start/first-time-setup/)
 keeps one canvas visible and changes the customization controls around it. The
 AK820 workspace follows that model: Effects and Per-key are modes of one mounted

@@ -75,6 +75,7 @@ export class WebHIDDeviceController implements DeviceController {
   private controlDevice: HIDDevice | null = null;
   private dataDevice: HIDDevice | null = null;
   private commandDevice: HIDDevice | null = null;
+  private commandTail: Promise<void> = Promise.resolve();
   private disconnectHandlers = new Set<() => void>();
   private boundDisconnectListener: ((event: HIDConnectionEvent) => void) | null = null;
 
@@ -267,6 +268,15 @@ export class WebHIDDeviceController implements DeviceController {
   }
 
   async exchangeCommand(request: CommandRequest): Promise<Uint8Array> {
+    const exchange = this.commandTail.then(() => this.exchangeCommandSerial(request));
+    this.commandTail = exchange.then(
+      () => undefined,
+      () => undefined,
+    );
+    return exchange;
+  }
+
+  private async exchangeCommandSerial(request: CommandRequest): Promise<Uint8Array> {
     const device = this.commandDevice;
     if (!device?.opened) {
       throw new DeviceFailure({
@@ -278,13 +288,25 @@ export class WebHIDDeviceController implements DeviceController {
     const packets = buildCommandPackets(request, reportLength);
     const responseChunks: Uint8Array[] = [];
     for (const packet of packets) {
-      const responsePromise = waitForCommandResponse(device, request.command, 2000);
-      try {
-        await device.sendReport(0, packet as BufferSource);
-        responseChunks.push((await responsePromise).payload);
-      } catch (cause) {
-        throw new DeviceFailure({ kind: "transfer-failed", reportId: request.command, cause });
+      let response: ReturnType<typeof parseCommandResponse> | null = null;
+      let lastCause: unknown;
+      for (let attempt = 0; attempt < 4 && !response; attempt += 1) {
+        const responsePromise = waitForCommandResponse(device, request.command, 2000);
+        try {
+          await device.sendReport(0, packet as BufferSource);
+          response = await responsePromise;
+        } catch (cause) {
+          lastCause = cause;
+        }
       }
+      if (!response) {
+        throw new DeviceFailure({
+          kind: "transfer-failed",
+          reportId: request.command,
+          cause: lastCause,
+        });
+      }
+      responseChunks.push(response.payload);
     }
     const merged = new Uint8Array(responseChunks.reduce((sum, chunk) => sum + chunk.length, 0));
     let offset = 0;

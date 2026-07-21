@@ -24,10 +24,17 @@ export async function readCustomLighting(
   controller: DeviceController,
 ): Promise<CustomLightingBackup> {
   requireCommandTransport(controller);
-  const [previousEffect, table] = await Promise.all([
-    controller.exchangeCommand({ command: GET_LED_EFFECT_COMMAND, contentSize: 16 }),
-    controller.exchangeCommand({ command: GET_CUSTOM_LED_COMMAND, contentSize: 512 }),
-  ]);
+  // The official driver keeps this endpoint strictly sequential. Interleaving
+  // the one-packet effect read with the multi-packet table read can make older
+  // 820PRO firmware associate an acknowledgement with the wrong request.
+  const previousEffect = await controller.exchangeCommand({
+    command: GET_LED_EFFECT_COMMAND,
+    contentSize: 16,
+  });
+  const table = await controller.exchangeCommand({
+    command: GET_CUSTOM_LED_COMMAND,
+    contentSize: 512,
+  });
   return { previousEffect, colors: parseCustomLedTable(table) };
 }
 

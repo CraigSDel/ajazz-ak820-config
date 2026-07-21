@@ -1,4 +1,4 @@
-import type { RGBColor } from "./lighting";
+import { LightingDirection, LightingMode, type LightingConfig, type RGBColor } from "./lighting";
 
 export const COMMAND_USAGE_PAGE = 0xff67;
 export const GET_LED_EFFECT_COMMAND = 0x13;
@@ -109,6 +109,51 @@ export function buildCustomModeData(brightness: number): Uint8Array {
   data[14] = 0xaa;
   data[15] = 0x55;
   return data;
+}
+
+/** Build the official framed-command payload used by the current AJAZZ web driver. */
+export function buildLedEffectData(config: LightingConfig): Uint8Array {
+  validateLedEffectConfig(config);
+
+  const data = new Uint8Array(16);
+  data[0] = config.mode;
+  data[1] = config.color.red;
+  data[2] = config.color.green;
+  data[3] = config.color.blue;
+  data[4] = 0xff;
+  data[8] = config.rainbow ? 1 : 0;
+  data[9] = config.mode === LightingMode.Off ? 0 : config.brightness;
+  data[10] = config.mode === LightingMode.Off ? 0 : config.speed;
+  data[11] = config.direction;
+  data[14] = 0xaa;
+  data[15] = 0x55;
+  return data;
+}
+
+function validateLedEffectConfig(config: LightingConfig): void {
+  if (
+    !Number.isInteger(config.mode) ||
+    config.mode < LightingMode.Off ||
+    config.mode > LightingMode.Shuttle
+  ) {
+    throw new Error(`buildLedEffectData: invalid lighting mode ${config.mode}`);
+  }
+  validateColor(config.color);
+  for (const [name, value] of [
+    ["brightness", config.brightness],
+    ["speed", config.speed],
+  ] as const) {
+    if (!Number.isInteger(value) || value < 1 || value > 6) {
+      throw new Error(`buildLedEffectData: ${name} must be an integer in [1, 6]`);
+    }
+  }
+  if (
+    !Number.isInteger(config.direction) ||
+    config.direction < LightingDirection.Left ||
+    config.direction > LightingDirection.Right
+  ) {
+    throw new Error(`buildLedEffectData: invalid lighting direction ${config.direction}`);
+  }
 }
 
 function validateColor(color: RGBColor): void {

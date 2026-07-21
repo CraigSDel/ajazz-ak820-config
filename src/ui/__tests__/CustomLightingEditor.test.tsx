@@ -28,28 +28,26 @@ describe("CustomLightingEditor", () => {
     const view = await renderEditor(false);
     expect(view.getByText("Command interface unavailable")).toBeTruthy();
     expect(
-      (view.getByRole("button", { name: "Read and back up current layout" }) as HTMLButtonElement)
-        .disabled,
+      (view.getByRole("button", { name: "Read current layout" }) as HTMLButtonElement).disabled,
     ).toBe(true);
     expect(
       (view.getByRole("button", { name: "Apply custom RGB" }) as HTMLButtonElement).disabled,
     ).toBe(true);
   });
 
-  test("paints individual keys and supports group editing with undo", async () => {
+  test("paints individual keys and supports fill and clear", async () => {
     const view = await renderEditor(true);
     const q = view.getByRole("button", { name: "Q, LED 33" });
     fireEvent.change(view.getByLabelText("Custom paint color"), { target: { value: "#123456" } });
     fireEvent.click(q);
     expect(q.getAttribute("style")).toContain("#123456");
 
-    fireEvent.click(view.getByRole("button", { name: "WASD" }));
     fireEvent.change(view.getByLabelText("Custom paint color"), { target: { value: "#00ff00" } });
-    fireEvent.click(view.getByRole("button", { name: "Paint selection" }));
+    fireEvent.click(view.getByRole("button", { name: "Fill all" }));
     expect(view.getByRole("button", { name: "W, LED 34" }).getAttribute("style")).toContain(
       "#00ff00",
     );
-    fireEvent.click(view.getByRole("button", { name: "Undo" }));
+    fireEvent.click(view.getByRole("button", { name: "Clear all" }));
     expect(view.getByRole("button", { name: "W, LED 34" }).getAttribute("style")).toContain(
       "#000000",
     );
@@ -66,14 +64,6 @@ describe("CustomLightingEditor", () => {
     fireEvent.keyDown(esc, { key: "ArrowRight" });
     expect(document.activeElement).toBe(f1);
     expect(f1.getAttribute("tabindex")).toBe("0");
-  });
-
-  test("saves a local profile without writing to the keyboard", async () => {
-    const { controller, getByLabelText, getByRole } = await renderEditor(true);
-    fireEvent.change(getByLabelText("Custom RGB profile name"), { target: { value: "Work" } });
-    fireEvent.click(getByRole("button", { name: "Save locally" }));
-    expect(localStorage.getItem("ak820-rgb-profile:Work")).toContain('"version": 1');
-    expect(controller.commandRequests).toHaveLength(0);
   });
 
   test("requires acknowledgement, backs up, then applies custom RGB", async () => {

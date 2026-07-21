@@ -3,11 +3,13 @@ import {
   buildCommandPackets,
   buildCustomLedTable,
   buildCustomModeData,
+  buildLedEffectData,
   CUSTOM_LED_TABLE_BYTES,
   parseCommandResponse,
   parseCustomLedTable,
   SET_CUSTOM_LED_COMMAND,
 } from "../custom-lighting";
+import { LightingDirection, LightingMode } from "../lighting";
 
 describe("official framed command transport", () => {
   test("chunks a 512-byte custom table with addresses and a final flag", () => {
@@ -49,5 +51,37 @@ describe("custom per-key RGB payload", () => {
     expect(data[4]).toBe(255);
     expect(data[9]).toBe(6);
     expect([...data.slice(14)]).toEqual([0xaa, 0x55]);
+  });
+});
+
+describe("built-in RGB effect payload", () => {
+  test("matches the official 16-byte SET_LED_EFFECT layout", () => {
+    const data = buildLedEffectData({
+      mode: LightingMode.Rolling,
+      color: { red: 0x12, green: 0x34, blue: 0x56 },
+      rainbow: true,
+      brightness: 6,
+      speed: 6,
+      direction: LightingDirection.Right,
+    });
+
+    expect([...data]).toEqual([
+      LightingMode.Rolling,
+      0x12,
+      0x34,
+      0x56,
+      0xff,
+      0,
+      0,
+      0,
+      1,
+      6,
+      6,
+      LightingDirection.Right,
+      0,
+      0,
+      0xaa,
+      0x55,
+    ]);
   });
 });

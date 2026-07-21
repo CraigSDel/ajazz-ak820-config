@@ -85,16 +85,3 @@ export const AK820_KEY_ROWS: readonly (readonly LightingKey[])[] = [
 export const AK820_LIGHTING_KEYS = AK820_KEY_ROWS.flat().filter(
   (item): item is LightingKey & { ledId: number } => item.ledId !== undefined,
 );
-
-export const AK820_KEY_GROUPS = {
-  All: AK820_LIGHTING_KEYS.map((item) => item.ledId),
-  WASD: [34, 49, 50, 35],
-  Arrows: [88, 89, 90, 91],
-  "Function row": AK820_LIGHTING_KEYS.filter((item) => item.group === "function").map(
-    (item) => item.ledId,
-  ),
-  Numbers: AK820_LIGHTING_KEYS.filter((item) => item.group === "numbers").map((item) => item.ledId),
-  Modifiers: AK820_LIGHTING_KEYS.filter((item) => item.group === "modifiers").map(
-    (item) => item.ledId,
-  ),
-} as const;

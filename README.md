@@ -53,8 +53,8 @@ Also implemented:
 - RGB lighting effects, color, brightness, speed, rainbow, and direction.
 - Corrected effect names and mode-specific controls derived from the official
   AJAZZ catalogue, with an explicitly approximate interactive preview.
-- Experimental custom static per-key RGB with capability detection, backup and
-  restore, gradients, presets, undo/redo, local profiles, and JSON import/export.
+- Experimental custom static per-key RGB with capability detection, direct key
+  painting, fill/clear, brightness, and session backup/restore.
 - Lighting sleep timeout.
 - Shared device-operation locking across time, image, and lighting actions.
 

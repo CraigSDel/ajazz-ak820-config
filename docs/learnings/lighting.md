@@ -19,14 +19,16 @@ must be no read after MODE_DATA. The rationale and transport rule live in
 ## Configuration semantics
 
 The legacy packet controls a whole-keyboard effect, color, brightness, speed,
-palette flag, and supported direction. The current official online driver also
-documents a separate framed-command path for a static per-key color map. The
-app keeps these transports separate and exposes custom editing only when the
-additional `0xff67` HID interface is present.
+palette flag, and supported direction. The current official online driver uses
+the `0xff67` framed-command interface for built-in effects as well as a static
+per-key color map. The app prefers command `0x23` for effects when that interface
+is available and retains the legacy transaction only as a compatibility fallback.
 
-- Brightness and speed are levels 0 through 5.
-- Off is transmitted as SingleOn with brightness and speed zero.
-- Static is transmitted as Breath with speed zero.
+- The official command interface uses brightness and speed levels 1 through 6.
+- The legacy feature interface uses 0 through 5. The UI's level 6 is clamped to
+  5 only when that compatibility path is required.
+- On the command interface, Off is mode 0 and Static is mode 1. The legacy path
+  transmits Off as SingleOn with zero levels and Static as Breath with speed 0.
 - Direction is shown only for effects with known direction support.
 - Reference sources disagree on numeric Up/Down mapping; physical confirmation
   remains required.
@@ -37,8 +39,38 @@ The official catalogue exposes modes 1 through 19 plus custom mode 128. It
 also declares whether each mode supports speed, a chosen color, and direction.
 The UI uses this metadata instead of displaying every control for every mode.
 Modes 10, 11, 12, 16, and 18 are directional; modes 6 and 8 use fixed palettes.
-Effect names are descriptive English labels rather than ambiguous literal
-translations, while protocol IDs remain unchanged.
+All color-capable modes, including Steady, can switch between one chosen color
+and the keyboard's built-in RGB palette. Effect names are descriptive English
+labels rather than ambiguous literal translations, while protocol IDs remain
+unchanged.
+
+| Mode | UI name | Color behavior | Motion behavior |
+|---:|---|---|---|
+| 0 | Off | None | Lighting disabled |
+| 1 | Steady | Chosen color or RGB palette | No speed |
+| 2 | Key Press — Light Up | Chosen color or RGB palette | Reactive; press a key |
+| 3 | Key Press — Fade Out | Chosen color or RGB palette | Reactive; press a key |
+| 4 | Twinkling Stars | Chosen color or RGB palette | Animated |
+| 5 | Falling Snow | Chosen color or RGB palette | Animated |
+| 6 | Color Bloom | Fixed palette; chosen color ignored | Animated |
+| 7 | Breathing | Chosen color or RGB palette | Animated |
+| 8 | Spectrum Cycle | Fixed palette; chosen color ignored | Animated |
+| 9 | Color Fountain | Chosen color or RGB palette | Animated |
+| 10 | Cross-Wave | Chosen color or RGB palette | Animated; up/down |
+| 11 | Rolling Wave | Chosen color or RGB palette | Animated; left/right |
+| 12 | Rotating Wave | Chosen color or RGB palette | Animated; left/right |
+| 13 | Key Press — Burst | Chosen color or RGB palette | Reactive; press a key |
+| 14 | Key Press — Dual Trail | Chosen color or RGB palette | Reactive; press a key |
+| 15 | Key Press — Ripple | Chosen color or RGB palette | Reactive; press a key |
+| 16 | Continuous Flow | Chosen color or RGB palette | Animated; left/right |
+| 17 | Layered Wave | Chosen color or RGB palette | Animated |
+| 18 | Diagonal Rain | Chosen color or RGB palette | Animated; left/right |
+| 19 | Shuttle | Chosen color or RGB palette | Animated |
+| 128 | Custom per-key | One RGB value per LED | Static only |
+
+Modes 2, 3, and 13–15 can appear inactive until a physical key is pressed.
+Modes 6 and 8 can appear to ignore configuration because their colors are
+firmware-defined. The UI labels both cases rather than treating them as errors.
 
 ## Static per-key custom RGB
 
@@ -56,9 +88,27 @@ snapshot can be restored during the same page session. Writes occur only after
 an explicit Apply action and risk acknowledgement; painting the browser preview
 does not communicate with the keyboard.
 
+All `0xff67` exchanges are serialized. In particular, the 16-byte effect backup
+must finish before the 512-byte custom table read starts; running both reads in
+parallel interleaves requests and acknowledgements on older 820PRO firmware.
+Each packet follows the official driver's initial attempt plus three retries.
+
 The AK820/820PRO official configuration does not enable GIF lighting. Host-side
 rapid writes are deliberately not used as a substitute because persistence and
 write endurance have not been established.
+
+### Reduction decision
+
+The first custom editor mixed the protocol experiment with profiles, imports,
+presets, gradients, group selection, recent colors, and undo history. Those
+features multiplied browser state and tests without improving confidence in the
+keyboard exchange. The reduced editor keeps only direct key painting,
+fill/clear, brightness, read, apply, and restore. This makes every hardware
+operation visible and leaves one color table as the only editable model.
+
+Convenience features should return only after custom mode is physically verified
+on both wired 820PRO product IDs. They should be isolated from transport code and
+must not introduce background writes.
 
 ## Sleep transaction
 
@@ -84,7 +134,7 @@ table that will be encoded.
 
 The keyboard is a single persistent render tree. Built-in mode makes its keys
 animation targets and reactive-preview triggers; per-key mode makes those same
-elements focusable paint controls with selection state. Keeping the same nodes
+elements focusable paint controls. Keeping the same nodes
 prevents changes in height, scroll position, focus geometry, and perceived
 hardware identity when the mode changes.
 
@@ -97,13 +147,25 @@ state as the full color input and do not introduce a second color model.
 
 ## What failed
 
-Treating MODE_DATA like a normal `0x04` control report and reading a feature
-response afterward can terminate the update. The fix is report-aware
-handshaking, not additional delay or retry logic.
+- Treating MODE_DATA like a normal `0x04` control report and reading a feature
+  response afterward can terminate the legacy update.
+- Using the legacy mode-valued feature-report path through Chromium can produce
+  a successful API call without changing the keyboard. Prefer command `0x23`.
+- A framed SET response confirms transport, not retained state. Read effect
+  command `0x13` back after the write; retry once inside the official driver's
+  500 ms settling window, then report the requested and retained mode IDs.
+- Treating official levels as legacy levels hid level 6 and exposed ineffective
+  level 0. Keep transport-specific validation and clamp only at the fallback.
+- Presenting reactive and fixed-palette effects like ordinary animations made
+  supported effects appear broken. Capability metadata must drive both controls
+  and explanatory UI.
+- Parallel command reads can corrupt the acknowledgement stream used by both
+  custom RGB and later built-in effects. Serialize the endpoint even when the
+  higher-level operation lock already prevents separate UI operations.
 
 ## Remaining hardware checks
 
-- Confirm Off and Static normalization on the LEDs.
+- Confirm Off and Static on both command and legacy transports.
 - Confirm Up/Down direction.
 - Confirm persistence across reconnect and power cycle.
 - Confirm sleep timing and wake behavior.

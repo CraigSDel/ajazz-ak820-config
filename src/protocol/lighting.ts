@@ -35,7 +35,8 @@ export const LightingDirection = {
 
 export type LightingDirection = (typeof LightingDirection)[keyof typeof LightingDirection];
 
-export type LightingLevel = 0 | 1 | 2 | 3 | 4 | 5;
+/** Superset of official command levels (1-6) and legacy/off level 0. */
+export type LightingLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 export type RGBColor = {
   red: number;

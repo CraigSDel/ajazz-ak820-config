@@ -14,6 +14,10 @@ describe("AK820 lighting effect metadata", () => {
     expect(effectForMode(LightingMode.Spectrum).supportsColor).toBe(false);
   });
 
+  test("offers the official RGB palette switch for steady lighting", () => {
+    expect(effectForMode(LightingMode.Static).supportsPalette).toBe(true);
+  });
+
   test("matches the official directional modes", () => {
     const directional = LIGHTING_EFFECTS.filter((effect) => effect.directions.length > 0).map(
       (effect) => effect.mode,

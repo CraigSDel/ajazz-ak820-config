@@ -29,7 +29,9 @@ current architecture and macOS compatibility.
       brightness, speed, and direction.
 - [x] Add a pure packet builder for the lighting-mode preamble (`0x13`).
 - [x] Add a pure packet builder for the 64-byte lighting data report.
-- [x] Validate brightness and speed as discrete values from 0 through 5.
+- [x] Validate legacy brightness and speed as discrete values from 0 through 5.
+- [x] Validate official command brightness and speed from 1 through 6 and clamp
+      level 6 only for the legacy fallback.
 - [x] Encode the firmware-specific handling for static and off modes.
 - [x] Add byte-exact unit tests for normal, boundary, static, and off packets.
 
@@ -49,21 +51,24 @@ current architecture and macOS compatibility.
 - [x] Add a React lighting panel with an effect selector, HTML color picker,
       rainbow toggle, and Apply button.
 - [x] Support the keyboard's 20 known built-in lighting effects.
-- [x] Add discrete brightness and speed controls with levels 0 through 5.
+- [x] Add discrete brightness and speed controls with official levels 1 through 6.
 - [x] Show direction controls only for effects that support them:
       scrolling uses up/down; rolling, flowing, and tilt use left/right.
 - [x] Disable controls while a lighting transaction is running.
 - [x] Display validation, disconnection, and transfer failures in the panel.
 - [x] Add React component tests for mode-dependent controls and submission.
 - [x] Reconcile names and supported controls with the official effect catalogue.
+- [x] Explain key-reactive and fixed-palette effects in the UI so supported
+      modes do not appear inactive or misconfigured.
 - [x] Give each effect a distinct approximate preview and make reactive previews
       originate from user-selected keys.
 - [x] Detect the optional `0xff67` official command interface.
 - [x] Add tested command framing, response matching, mode 128, and the 512-byte
       indexed custom RGB table.
-- [x] Add a static per-key editor with selection groups, paint/erase, gradients,
-      presets, recent colors, undo/redo, backup/restore, local profiles, and
-      versioned JSON import/export.
+- [x] Add a deliberately small static per-key editor with direct painting,
+      fill/clear, brightness, explicit apply, and session backup/restore.
+- [x] Remove profiles, presets, gradients, selection groups, recent colors, and
+      edit history to reduce state and keep protocol debugging isolated.
 - [ ] Physically validate custom write and restoration on PIDs `0x8009` and
       `0x800a`, including ISO and ANSI LED mappings.
 
