@@ -2,10 +2,6 @@ import { DeviceFailure } from "./device/errors";
 import type { DeviceController } from "./device/types";
 import { RGB565_FRAME_BYTES } from "./protocol/constants";
 import {
-  buildAnimatedCfgReport,
-  buildAnimatedDataChunks,
-  buildAnimatedSaveReport,
-  buildAnimatedStartReport,
   buildImageCfgReport,
   buildImageDataChunks,
   buildImageSaveReport,
@@ -175,23 +171,21 @@ export async function uploadAnimatedImage(
     });
   }
 
-  // Animated path — AKS075 framing: 256-byte frame header at start, sub=0x03,
-  // SAVE termination. AK820 Pro firmware appears to need this convention to
-  // know "this is N frames with delays X,Y,Z" rather than treating the data
-  // as one big static blob.
-  const chunks = buildAnimatedDataChunks(frames, delaysMs);
+  // The shared image framing carries the frame count and delays in its
+  // 256-byte header; a one-frame upload is simply the static case.
+  const chunks = buildImageDataChunks(frames, delaysMs);
   onProgress(0);
 
-  await ctrl.sendFeatureReport(buildAnimatedStartReport());
+  await ctrl.sendFeatureReport(buildImageStartReport());
   await ctrl.receiveFeatureReport(0);
 
-  await ctrl.sendFeatureReport(buildAnimatedCfgReport(chunks.length));
+  await ctrl.sendFeatureReport(buildImageCfgReport(chunks.length));
   await ctrl.receiveFeatureReport(0);
 
   await sendImageChunks(ctrl, chunks, onProgress);
 
   await sleep(INTER_PACKET_DELAY_MS);
-  await ctrl.sendFeatureReport(buildAnimatedSaveReport());
+  await ctrl.sendFeatureReport(buildImageSaveReport());
   await ctrl.receiveFeatureReport(0);
   await sleep(POST_SAVE_DELAY_MS);
   onProgress(1);

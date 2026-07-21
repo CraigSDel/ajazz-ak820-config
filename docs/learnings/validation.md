@@ -6,13 +6,22 @@
 
 Current baseline:
 
-- `npm test`: 25 files, 154 tests
+- `npm test`: 26 files, 149 tests
+- `npm run test:coverage`: whole-source V8 coverage with enforced minimums of
+  70% statements, 60% branches, 70% functions, and 70% lines
 - `npm run build`: TypeScript and Vite production build
 - `npm run lint`: Biome checks for `src/`
 
 Tests lock packet bytes, ordering, acknowledgement rules, operation locking,
 error handling, and UI behavior. Preset tests specifically require four feature
 reports and prove that the optional command interface is not used.
+
+Coverage includes application TypeScript and TSX, including the WebHID hardware
+adapter. Only test files, test setup, and the thin browser entry point are
+excluded. CI prints the totals in the job summary and retains the navigable HTML
+report as an artifact for 14 days. Keep thresholds below the measured baseline
+so small rounding changes do not cause noise, but raise them when sustained test
+improvements create enough headroom.
 
 ## Physical boundary
 

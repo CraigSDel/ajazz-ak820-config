@@ -35,10 +35,6 @@ export const CHUNK_SIZE = 4096;
  */
 export const CHUNKS_PER_FRAME = 9;
 
-/** HID interface numbers. */
-export const CONTROL_INTERFACE_NUMBER = 3;
-export const DATA_INTERFACE_NUMBER = 2;
-
 /** HID usage pages used to disambiguate the AJAZZ vendor interfaces under WebHID. */
 export const CONTROL_USAGE_PAGE = 0xff13;
 export const DATA_USAGE_PAGE = 0xff68;

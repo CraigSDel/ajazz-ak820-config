@@ -48,7 +48,6 @@ if (!globalThis.Blob.prototype.arrayBuffer) {
     // Find the jsdom impl symbol (there is exactly one Symbol key on jsdom objects)
     const syms = Object.getOwnPropertySymbols(this) as symbol[];
     for (const sym of syms) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const impl = (this as unknown as Record<symbol, unknown>)[sym] as Record<
         string,
         unknown

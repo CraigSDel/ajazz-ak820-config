@@ -14,6 +14,18 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/test-setup.ts"],
     globals: false,
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["src/**/__tests__/**", "src/**/*.test.*", "src/main.tsx", "src/test-setup.ts"],
+      reporter: ["text", "html", "json-summary"],
+      thresholds: {
+        statements: 70,
+        branches: 60,
+        functions: 70,
+        lines: 70,
+      },
+    },
     environmentOptions: {
       jsdom: { url: "http://localhost/" },
     },

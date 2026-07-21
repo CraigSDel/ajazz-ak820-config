@@ -12,8 +12,8 @@ The app separates four tasks:
 - Testing: optional physical effect validation
 
 Only the active workspace is rendered. Connection health remains visible in the
-header and links to recovery controls. The Testing workspace is hidden with
-`VITE_SHOW_HARDWARE_TESTING=false` for normal deployments.
+header and links to recovery controls. The Testing workspace is visible by
+default and can be hidden with `VITE_SHOW_HARDWARE_TESTING=false`.
 
 ## Lighting workspace
 

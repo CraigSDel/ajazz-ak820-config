@@ -2,7 +2,6 @@ import { LightingDirection, LightingMode, type LightingConfig, type RGBColor } f
 
 export const COMMAND_USAGE_PAGE = 0xff67;
 export const GET_LED_EFFECT_COMMAND = 0x13;
-export const GET_CUSTOM_LED_COMMAND = 0x14;
 export const SET_LED_EFFECT_COMMAND = 0x23;
 export const SET_CUSTOM_LED_COMMAND = 0x24;
 export const CUSTOM_LIGHTING_MODE = 0x80;

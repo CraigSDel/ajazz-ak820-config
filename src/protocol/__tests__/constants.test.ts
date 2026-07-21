@@ -6,7 +6,6 @@ import {
   SCREEN_HEIGHT,
   CHUNK_SIZE,
   RGB565_FRAME_BYTES,
-  CONTROL_INTERFACE_NUMBER,
   CONTROL_USAGE_PAGE,
   PACKET_LENGTH,
 } from "../constants";
@@ -33,8 +32,7 @@ describe("protocol constants", () => {
     expect(CHUNK_SIZE).toBe(4096);
   });
 
-  test("control interface is 3, usage page 0xFF13", () => {
-    expect(CONTROL_INTERFACE_NUMBER).toBe(3);
+  test("control usage page is 0xFF13", () => {
     expect(CONTROL_USAGE_PAGE).toBe(0xff13);
   });
 

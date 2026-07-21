@@ -26,6 +26,23 @@ GIF composition honors keep-canvas, restore-background, and restore-previous
 disposal methods. Size and decoded-pixel limits are enforced before expensive
 work to protect the browser tab.
 
+The enforced input limits are part of the browser-safety boundary and should
+stay aligned with `src/image/static.ts`, `src/image/animated.ts`, and
+`src/ui/ImagePanel.tsx`:
+
+| Input | Current limit |
+| --- | --- |
+| Static file | 10 MiB |
+| Animated file | 20 MiB |
+| One multi-file selection | 50 MiB and 255 files |
+| Animated canvas or frame descriptor | 2048 × 2048 px |
+| Decoded animation | 255 frames |
+| GIF patch pixels before decompression | 50 million total |
+
+An animated selection can reach the 255-frame limit before the 255-file limit.
+Validate the accumulated frame count after each decoded file so later files
+cannot push the final upload header beyond what it can represent.
+
 ## Upload framing
 
 The current sequence is:
@@ -66,6 +83,8 @@ the current framing does not persist.
 - Resize before RGB565 conversion.
 - Composite animation patches before resizing.
 - Detect real transparency rather than assuming it from file type.
+- Reject oversized selections and animation metadata before decoding.
+- Validate both selected-file count and accumulated decoded-frame count.
 - Use acknowledged chunks as the progress boundary.
 - Do not send SAVE after a failed chunk.
 - Treat sequential uploads as replacement, not additional stored slots.
