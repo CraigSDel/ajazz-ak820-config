@@ -163,8 +163,11 @@ confirmed on physical hardware.
 The production build is configured for
 `https://craigsdel.github.io/ajazz-ak820-config/`. The
 [`Deploy to GitHub Pages`](.github/workflows/deploy-pages.yml) workflow tests,
-builds, and deploys the site after each push to `main`; it can also be run
-manually from the repository's **Actions** tab.
+lints, and builds every pull request targeting `main`. Pushes to `main` run the
+same checks and deploy the resulting artifact. A manual run deploys only when
+it is started from `main`, preventing a feature branch from replacing the
+production site. The Pages base path is derived from the repository name, so
+forks work without editing the Vite configuration.
 
 For the first deployment, open **Settings → Pages** in GitHub and set **Source**
 to **GitHub Actions**. WebHID requires a secure context, which the GitHub Pages
