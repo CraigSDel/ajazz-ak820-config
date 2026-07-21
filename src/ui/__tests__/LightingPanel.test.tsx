@@ -79,10 +79,14 @@ describe("LightingPanel", () => {
     const firstKey = canvas?.querySelector(".keyboard-key");
 
     expect(view.queryByLabelText("Custom paint color")).toBeNull();
-    expect(view.queryByLabelText("Per-key RGB status")).toBeNull();
+    expect(view.getByLabelText("RGB lighting status").textContent).toContain(
+      "Effects are experimental",
+    );
     expect(view.getAllByLabelText(/AK820 Pro/)).toHaveLength(1);
     fireEvent.click(view.getByRole("button", { name: "Per-key" }));
-    expect(view.getByLabelText("Per-key RGB status").textContent).toContain("in development");
+    expect(view.getByLabelText("RGB lighting status").textContent).toContain(
+      "You can still apply it for testing",
+    );
     expect(view.getByLabelText("Custom paint color")).toBeTruthy();
     expect(view.getAllByLabelText(/AK820 Pro/)).toHaveLength(1);
     expect(view.queryByLabelText("Lighting effect")).toBeNull();

@@ -3,24 +3,16 @@ import { useDeviceSession } from "../device/DeviceSession";
 import { setLighting, setLightingSleepTime } from "../operations";
 import {
   type LightingConfig,
-  LightingDirection,
+  type LightingDirection,
   type LightingLevel,
   LightingMode,
 } from "../protocol/lighting";
 import { LightingSleepTime, type LightingSleepTime as SleepTime } from "../protocol/lighting-sleep";
 import { effectForMode, LIGHTING_EFFECTS } from "../lighting/effects";
 import { hexToRgb, rgbToHex } from "../lighting/color";
+import { DEFAULT_LIGHTING_CONFIG } from "../lighting/default-config";
 import { useCustomLightingEditor } from "./CustomLightingEditor";
 import { LightingKeyboard, type LightingKeyboardProps } from "./LightingKeyboard";
-
-const DEFAULT_CONFIG: LightingConfig = {
-  mode: LightingMode.Static,
-  color: { red: 255, green: 0, blue: 0 },
-  rainbow: false,
-  brightness: 5,
-  speed: 3,
-  direction: LightingDirection.Left,
-};
 
 const COLOR_PRESETS = [
   "#ff3b30",
@@ -35,7 +27,7 @@ const COLOR_PRESETS = [
 
 export function LightingPanel() {
   const { controller, connected, activeOperation, runOperation } = useDeviceSession();
-  const [config, setConfig] = useState<LightingConfig>(DEFAULT_CONFIG);
+  const [config, setConfig] = useState<LightingConfig>(DEFAULT_LIGHTING_CONFIG);
   const [appliedConfig, setAppliedConfig] = useState<LightingConfig | null>(null);
   const [sleepTime, setSleepTime] = useState<SleepTime>(LightingSleepTime.Never);
   const [status, setStatus] = useState<string | null>(null);
@@ -111,15 +103,17 @@ export function LightingPanel() {
           </button>
         </fieldset>
       </div>
-      {editingMode === "per-key" && (
-        <aside className="development-banner" role="note" aria-label="Per-key RGB status">
-          <span aria-hidden="true">!</span>
-          <div>
-            <strong>Per-key RGB is in development</strong>
-            <p>This experimental feature may not apply or restore colors correctly yet.</p>
-          </div>
-        </aside>
-      )}
+      <aside className="development-banner" role="note" aria-label="RGB lighting status">
+        <span aria-hidden="true">!</span>
+        <div>
+          <strong>RGB lighting is in development</strong>
+          <p>
+            {editingMode === "effects"
+              ? "Effects are experimental and may need more than one attempt."
+              : "Per-key RGB is experimental and not working reliably yet. You can still apply it for testing."}
+          </p>
+        </div>
+      </aside>
       <LightingKeyboard {...keyboardProps} />
       <p className="keyboard-context">
         {editingMode === "effects" ? (

@@ -66,11 +66,10 @@ describe("CustomLightingEditor", () => {
     expect(f1.getAttribute("tabindex")).toBe("0");
   });
 
-  test("requires acknowledgement, backs up, then applies custom RGB", async () => {
-    const { controller, getByLabelText, getByRole } = await renderEditor(true);
+  test("backs up and applies custom RGB without an acknowledgement gate", async () => {
+    const { controller, getByRole, queryByRole } = await renderEditor(true);
     const apply = getByRole("button", { name: "Apply custom RGB" }) as HTMLButtonElement;
-    expect(apply.disabled).toBe(true);
-    fireEvent.click(getByLabelText(/I understand that custom RGB/i));
+    expect(queryByRole("checkbox")).toBeNull();
     expect(apply.disabled).toBe(false);
     fireEvent.click(apply);
 

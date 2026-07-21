@@ -20,7 +20,6 @@ export function useCustomLightingEditor() {
   const [colors, setColors] = useState<RGBColor[]>(emptyColors);
   const [paintColor, setPaintColor] = useState("#ff0000");
   const [brightness, setBrightness] = useState(6);
-  const [acknowledged, setAcknowledged] = useState(false);
   const [backup, setBackup] = useState<CustomLightingBackup | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const available = connected && canUseCustomLighting(controller);
@@ -131,16 +130,6 @@ export function useCustomLightingEditor() {
         </button>
       </div>
 
-      <label className="checkbox-label custom-risk">
-        <input
-          type="checkbox"
-          checked={acknowledged}
-          onChange={(event) => setAcknowledged(event.target.checked)}
-        />
-        I understand that custom RGB uses a reverse-engineered command and have kept the official
-        driver available.
-      </label>
-
       <div className="custom-apply-actions">
         <button type="button" disabled={!available || busy} onClick={readFromKeyboard}>
           Read current layout
@@ -148,7 +137,7 @@ export function useCustomLightingEditor() {
         <button
           type="button"
           className="primary-action"
-          disabled={!available || !acknowledged || busy}
+          disabled={!available || busy}
           onClick={applyToKeyboard}
         >
           Apply custom RGB

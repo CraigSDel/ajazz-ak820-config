@@ -1,27 +1,14 @@
 import { useState } from "react";
 import { useDeviceSession } from "../device/DeviceSession";
 import { effectForMode } from "../lighting/effects";
+import { DEFAULT_LIGHTING_CONFIG } from "../lighting/default-config";
 import { setLighting } from "../operations";
-import {
-  type LightingConfig,
-  LightingDirection,
-  type LightingMode,
-  LightingMode as Mode,
-} from "../protocol/lighting";
+import type { LightingConfig, LightingMode } from "../protocol/lighting";
 import { EffectValidation } from "./EffectValidation";
-
-const TEST_CONFIG: LightingConfig = {
-  mode: Mode.Static,
-  color: { red: 255, green: 0, blue: 0 },
-  rainbow: false,
-  brightness: 5,
-  speed: 3,
-  direction: LightingDirection.Left,
-};
 
 export function EffectTestingPanel() {
   const { controller, connected, activeOperation, runOperation } = useDeviceSession();
-  const [config, setConfig] = useState(TEST_CONFIG);
+  const [config, setConfig] = useState(DEFAULT_LIGHTING_CONFIG);
   const [status, setStatus] = useState<string | null>(null);
   const effect = effectForMode(config.mode);
   const busy = activeOperation !== null;

@@ -6,10 +6,41 @@ import { DeviceSessionProvider } from "../../device/DeviceSession";
 import { MockDeviceController } from "../../device/mock-controller";
 import { LightingMode } from "../../protocol/lighting";
 import { EffectTestingPanel } from "../EffectTestingPanel";
+import { LightingPanel } from "../LightingPanel";
 
 afterEach(cleanup);
 
 describe("EffectTestingPanel", () => {
+  test("uses the exact same lighting transaction as the Lighting workspace", async () => {
+    localStorage.clear();
+    const lightingController = new MockDeviceController();
+    await lightingController.connect();
+    const lighting = render(
+      <DeviceSessionProvider controller={lightingController}>
+        <LightingPanel />
+      </DeviceSessionProvider>,
+    );
+    fireEvent.click(lighting.getByRole("button", { name: "Apply to keyboard" }));
+    await waitFor(() => expect(lightingController.sent).toHaveLength(8));
+    lighting.unmount();
+
+    const testingController = new MockDeviceController();
+    await testingController.connect();
+    const testing = render(
+      <DeviceSessionProvider controller={testingController}>
+        <EffectTestingPanel />
+      </DeviceSessionProvider>,
+    );
+    fireEvent.click(testing.getByRole("button", { name: "Start test" }));
+    await waitFor(() => expect(testingController.sent).toHaveLength(8));
+
+    expect(
+      testingController.sent.map(({ reportId, bytes }) => ({ reportId, bytes: [...bytes] })),
+    ).toEqual(
+      lightingController.sent.map(({ reportId, bytes }) => ({ reportId, bytes: [...bytes] })),
+    );
+  });
+
   test("records a result and selects and applies the next untested effect", async () => {
     localStorage.clear();
     const controller = new MockDeviceController();

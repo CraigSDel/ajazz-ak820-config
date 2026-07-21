@@ -1678,22 +1678,6 @@ select {
   color: #a9dfbd;
 }
 
-.custom-risk {
-  align-items: flex-start;
-  margin: 0;
-  padding: 0.8rem 0.9rem;
-  border: 1px solid #5d5039;
-  border-radius: var(--radius-sm);
-  background: #211d16;
-  color: #cdbd9d;
-  font-size: 0.82rem;
-  line-height: 1.45;
-}
-
-.custom-risk input {
-  width: auto;
-}
-
 .custom-apply-actions {
   display: flex;
   flex-wrap: wrap;
