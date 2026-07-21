@@ -25,6 +25,7 @@ Before release:
 - Pass the four preset canaries three times.
 - Record all 20 effects in the Testing workspace.
 - Confirm direction, persistence, sleep, time sync, and TFT uploads.
-- Run per-key tests only when the optional interface is detected.
+- Run per-key tests in wired mode, starting with one key and a manually
+  restorable built-in effect.
 
 See the [manual test plan](../manual-test.md).

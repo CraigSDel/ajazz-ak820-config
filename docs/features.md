@@ -16,8 +16,8 @@ Chromium browser. It remains local-only and communicates through WebHID.
   normalization and byte-level tests.
 - Lighting sleep timeout.
 - Approximate interactive keyboard preview.
-- Optional static per-key RGB editor with read, paint, fill, clear, apply, and
-  session restore.
+- Experimental write-only live per-key RGB editor with paint, fill, clear,
+  start, and stop.
 - Dedicated hardware Testing workspace with persistent results and report
   export. Set `VITE_SHOW_HARDWARE_TESTING=false` to hide it.
 - Responsive and keyboard-accessible UI.
@@ -27,7 +27,7 @@ Chromium browser. It remains local-only and communicates through WebHID.
 - Re-run all 20 presets using the corrected feature-report transport.
 - Confirm Up/Down direction, persistence, sleep timing, and wake behavior.
 - Verify static and animated TFT persistence on the target keyboard.
-- Verify per-key RGB mapping and restore on ANSI and ISO layouts.
+- Verify the captured per-key RGB mapping on the ANSI layout.
 - Confirm custom RGB persistence and safe write frequency.
 
 Use [`manual-test.md`](manual-test.md) for the procedure. Record protocol-level

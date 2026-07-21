@@ -71,18 +71,19 @@ Pass: lighting turns off after approximately one minute and wakes normally.
 
 ## 7. Experimental per-key RGB
 
-Only continue if the Per-key panel detects the optional command interface.
+Connect the AK820 Pro in wired mode before continuing.
 
-1. Read and save the current layout.
+1. Select a known built-in lighting effect so it can be restored manually.
 2. Paint only Esc red and apply.
-3. Repeat with Q, Space, the ISO key if present, arrows, Delete, End, Page Up,
+3. Repeat with Q, Space, arrows, Delete, Home, Page Up,
    and Page Down.
 4. Test Fill all and Clear all.
-5. Restore the saved lighting.
+5. Restore the original built-in effect manually.
 6. Reload and power-cycle to record persistence.
 
 Pass: visual keys map to physical LEDs, editing causes no traffic before Apply,
-and Restore recovers the previous state.
+the custom layout remains active while the Per-key panel is open, and leaving
+the panel restores the firmware's previous lighting mode.
 
 ## 8. Shared-operation safety
 

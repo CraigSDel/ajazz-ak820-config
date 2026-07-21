@@ -42,18 +42,18 @@ original AK820 Pro with the 128 × 128 TFT: USB vendor ID `0x0c45`, product ID
 - Static and animated image upload, including ordered multi-image sequences.
 - RGB lighting effects, color, brightness, speed, rainbow, and direction.
 - Approximate interactive lighting preview.
-- Experimental custom static per-key RGB with capability detection, direct key
-  painting, fill/clear, brightness, and session backup/restore.
+- Experimental live per-key RGB using the captured AK820 Pro feature reports,
+  with direct key painting and fill/clear.
 - Lighting sleep timeout.
 - Optional hardware Testing workspace and shared device-operation locking.
 
 Not implemented: key remapping and macro recording; their device protocols
 still require hardware capture and safe restoration research.
 
-Custom RGB requires the keyboard to expose the optional `0xff67` framed-command
-HID interface. This interface comes from an AJAZZ web application that does not
-claim AK820 Pro support, so it remains experimental and is never used for preset
-effects. The editor remains disabled when the interface is not detected.
+Custom RGB uses a write-only feature-report transaction recovered from AK820 Pro
+OEM-driver captures. The firmware resumes its stored preset unless that table is
+streamed, so live RGB runs only while the Per-key panel is open. Reading and
+restoring a previous custom layout remain unavailable.
 
 ## Limits
 

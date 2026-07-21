@@ -89,14 +89,10 @@ describe("LightingPanel", () => {
     const firstKey = canvas?.querySelector(".keyboard-key");
 
     expect(view.queryByLabelText("Custom paint color")).toBeNull();
-    expect(view.getByLabelText("RGB lighting status").textContent).toContain(
-      "Effects are experimental",
-    );
+    expect(view.queryByLabelText("RGB lighting status")).toBeNull();
     expect(view.getAllByLabelText(/AK820 Pro/)).toHaveLength(1);
     fireEvent.click(view.getByRole("button", { name: "Per-key" }));
-    expect(view.getByLabelText("RGB lighting status").textContent).toContain(
-      "You can still apply it for testing",
-    );
+    expect(view.getByRole("note").textContent).toContain("does not store custom per-key layouts");
     expect(view.getByLabelText("Custom paint color")).toBeTruthy();
     expect(view.getAllByLabelText(/AK820 Pro/)).toHaveLength(1);
     expect(view.queryByLabelText("Lighting effect")).toBeNull();
@@ -116,6 +112,17 @@ describe("LightingPanel", () => {
     expect(view.getByRole("button", { name: "Q, LED 33" }).getAttribute("style")).toContain(
       "#123456",
     );
+  });
+
+  test("stops live per-key streaming when switching to effects", async () => {
+    const view = await renderPanel();
+    fireEvent.click(view.getByRole("button", { name: "Per-key" }));
+    fireEvent.click(view.getByRole("button", { name: "Apply custom RGB" }));
+    await waitFor(() => expect(view.getByRole("button", { name: "Stop live RGB" })).toBeTruthy());
+
+    fireEvent.click(view.getByRole("button", { name: "Effects" }));
+    fireEvent.click(view.getByRole("button", { name: "Per-key" }));
+    expect(view.getByRole("button", { name: "Apply custom RGB" })).toBeTruthy();
   });
 
   test("hides controls which the effect metadata marks unsupported", async () => {

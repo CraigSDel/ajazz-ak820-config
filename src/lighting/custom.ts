@@ -1,85 +1,59 @@
 import type { DeviceController } from "../device/types";
-import {
-  buildCustomLedTable,
-  buildCustomModeData,
-  GET_CUSTOM_LED_COMMAND,
-  GET_LED_EFFECT_COMMAND,
-  parseCustomLedTable,
-  SET_CUSTOM_LED_COMMAND,
-  SET_LED_EFFECT_COMMAND,
-  type CustomLed,
-} from "../protocol/custom-lighting";
+import { AK820_LIGHTING_KEYS } from "./keyboard-layout";
+import { CONTROL_REPORT_LEAD_BYTE, PACKET_LENGTH } from "../protocol/constants";
 import type { RGBColor } from "../protocol/lighting";
+import type { ReportMessage } from "../protocol/types";
 
-export type CustomLightingBackup = {
-  previousEffect: Uint8Array;
-  colors: CustomLed[];
-};
+// Device IDs captured from the AK820 Pro OEM driver's custom-lighting transfer.
+// They are ordered like AK820_LIGHTING_KEYS (the visual ANSI layout), not by
+// the editor's sparse preview IDs.
+const DEVICE_KEY_IDS = [
+  0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x77, 0x13, 0x14,
+  0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x67, 0x75, 0x25, 0x26, 0x27,
+  0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f, 0x30, 0x31, 0x43, 0x76, 0x37, 0x38, 0x39, 0x3a,
+  0x3b, 0x3c, 0x3d, 0x3e, 0x3f, 0x40, 0x41, 0x42, 0x55, 0x79, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e,
+  0x4f, 0x50, 0x51, 0x52, 0x53, 0x54, 0x65, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f, 0x60, 0x62, 0x63, 0x64,
+  0x66,
+] as const;
 
 export function canUseCustomLighting(controller: DeviceController): boolean {
-  return controller.isConnected() && controller.supportsCommandTransport();
+  return controller.isConnected();
 }
 
-export async function readCustomLighting(
-  controller: DeviceController,
-): Promise<CustomLightingBackup> {
-  requireCommandTransport(controller);
-  // The supplemental web implementation keeps this endpoint strictly sequential. Interleaving
-  // the one-packet effect read with the multi-packet table read can make older
-  // 820PRO firmware associate an acknowledgement with the wrong request.
-  const previousEffect = await controller.exchangeCommand({
-    command: GET_LED_EFFECT_COMMAND,
-    contentSize: 16,
+export function buildCustomLightingReports(colors: readonly RGBColor[]): ReportMessage[] {
+  const wireReports = Array.from({ length: 8 }, () => new Uint8Array(PACKET_LENGTH));
+
+  AK820_LIGHTING_KEYS.forEach((key, index) => {
+    const color = colors[key.ledId] ?? { red: 0, green: 0, blue: 0 };
+    const report = wireReports[Math.floor(index / 16)];
+    const offset = (index % 16) * 4;
+    report.set([DEVICE_KEY_IDS[index], color.red, color.green, color.blue], offset);
   });
-  const table = await controller.exchangeCommand({
-    command: GET_CUSTOM_LED_COMMAND,
-    contentSize: 512,
-  });
-  return { previousEffect, colors: parseCustomLedTable(table) };
+
+  const start = new Uint8Array(PACKET_LENGTH);
+  start.set([CONTROL_REPORT_LEAD_BYTE, 0x20], 0);
+  start[8] = wireReports.length;
+  const commit = new Uint8Array(PACKET_LENGTH);
+  commit.set([CONTROL_REPORT_LEAD_BYTE, 0x02], 0);
+
+  return [start, ...wireReports, commit].map(toReportMessage);
 }
 
 export async function applyCustomLighting(
   controller: DeviceController,
   colors: readonly RGBColor[],
-  brightness: number,
-): Promise<CustomLightingBackup> {
-  const backup = await readCustomLighting(controller);
-  await controller.exchangeCommand({
-    command: SET_LED_EFFECT_COMMAND,
-    contentSize: 16,
-    data: buildCustomModeData(brightness),
-  });
-  const table = buildCustomLedTable(colors);
-  await controller.exchangeCommand({
-    command: SET_CUSTOM_LED_COMMAND,
-    contentSize: table.length,
-    data: table,
-  });
-  return backup;
-}
-
-export async function restoreCustomLighting(
-  controller: DeviceController,
-  backup: CustomLightingBackup,
 ): Promise<void> {
-  requireCommandTransport(controller);
-  const table = buildCustomLedTable(backup.colors);
-  await controller.exchangeCommand({
-    command: SET_CUSTOM_LED_COMMAND,
-    contentSize: table.length,
-    data: table,
-  });
-  if (backup.previousEffect.byteLength === 16) {
-    await controller.exchangeCommand({
-      command: SET_LED_EFFECT_COMMAND,
-      contentSize: 16,
-      data: backup.previousEffect,
-    });
+  if (!canUseCustomLighting(controller)) {
+    throw new Error("Custom RGB is unavailable while the keyboard is disconnected.");
+  }
+  for (const report of buildCustomLightingReports(colors)) {
+    await controller.sendFeatureReport(report);
+    if (report.reportId === CONTROL_REPORT_LEAD_BYTE) {
+      await controller.receiveFeatureReport(0);
+    }
   }
 }
 
-function requireCommandTransport(controller: DeviceController): void {
-  if (!canUseCustomLighting(controller)) {
-    throw new Error("Custom RGB is unavailable: the keyboard has no compatible command interface.");
-  }
+function toReportMessage(wire: Uint8Array): ReportMessage {
+  return { reportId: wire[0], bytes: wire.slice(1) };
 }

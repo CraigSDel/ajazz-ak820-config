@@ -1,13 +1,13 @@
-import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 // biome-ignore lint/correctness/noUnusedImports: required by this test file's classic JSX transform
 import React from "react";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { DeviceSessionProvider } from "../../device/DeviceSession";
 import { MockDeviceController } from "../../device/mock-controller";
-import { SET_CUSTOM_LED_COMMAND } from "../../protocol/custom-lighting";
 import { CustomLightingEditor } from "../CustomLightingEditor";
 
 afterEach(() => {
+  vi.useRealTimers();
   cleanup();
   localStorage.clear();
 });
@@ -24,15 +24,14 @@ async function renderEditor(commandTransport: boolean) {
 }
 
 describe("CustomLightingEditor", () => {
-  test("keeps hardware actions disabled without the optional command interface", async () => {
+  test("uses the standard feature interface without the optional command interface", async () => {
     const view = await renderEditor(false);
-    expect(view.getByText("Command interface unavailable")).toBeTruthy();
-    expect(
-      (view.getByRole("button", { name: "Read current layout" }) as HTMLButtonElement).disabled,
-    ).toBe(true);
+    expect(view.getByText("Wired interface ready")).toBeTruthy();
     expect(
       (view.getByRole("button", { name: "Apply custom RGB" }) as HTMLButtonElement).disabled,
-    ).toBe(true);
+    ).toBe(false);
+    expect(view.queryByRole("button", { name: "Read current layout" })).toBeNull();
+    expect(view.queryByRole("button", { name: "Restore previous lighting" })).toBeNull();
   });
 
   test("paints individual keys and supports fill and clear", async () => {
@@ -66,14 +65,29 @@ describe("CustomLightingEditor", () => {
     expect(f1.getAttribute("tabindex")).toBe("0");
   });
 
-  test("backs up and applies custom RGB without an acknowledgement gate", async () => {
-    const { controller, getByRole, queryByRole } = await renderEditor(true);
+  test("applies custom RGB over feature reports", async () => {
+    const { controller, getByRole, queryByRole } = await renderEditor(false);
     const apply = getByRole("button", { name: "Apply custom RGB" }) as HTMLButtonElement;
     expect(queryByRole("checkbox")).toBeNull();
     expect(apply.disabled).toBe(false);
     fireEvent.click(apply);
 
-    await waitFor(() => expect(controller.commandRequests).toHaveLength(4));
-    expect(controller.commandRequests.at(-1)?.command).toBe(SET_CUSTOM_LED_COMMAND);
+    await waitFor(() => expect(controller.sent).toHaveLength(10));
+    expect(controller.commandRequests).toHaveLength(0);
+    expect(getByRole("button", { name: "Stop live RGB" })).toBeTruthy();
+  });
+
+  test("keeps streaming while live RGB is active", async () => {
+    vi.useFakeTimers();
+    const { controller, getByRole } = await renderEditor(false);
+    fireEvent.click(getByRole("button", { name: "Apply custom RGB" }));
+    await act(async () => Promise.resolve());
+    expect(controller.sent).toHaveLength(10);
+
+    await act(async () => vi.advanceTimersByTimeAsync(130));
+    expect(controller.sent).toHaveLength(20);
+    fireEvent.click(getByRole("button", { name: "Stop live RGB" }));
+    await act(async () => vi.advanceTimersByTimeAsync(260));
+    expect(controller.sent).toHaveLength(20);
   });
 });

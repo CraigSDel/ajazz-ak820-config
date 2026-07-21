@@ -35,7 +35,7 @@ export function LightingPanel() {
   const [editingMode, setEditingMode] = useState<"effects" | "per-key">("effects");
   const directionOptions = useMemo(() => directionsForMode(config.mode), [config.mode]);
   const selectedEffect = effectForMode(config.mode);
-  const customEditor = useCustomLightingEditor();
+  const customEditor = useCustomLightingEditor(editingMode === "per-key");
   const busy = activeOperation !== null;
   const applyingLighting = activeOperation === "lighting";
   const hasChanges = !appliedConfig || !sameLightingConfig(config, appliedConfig);
@@ -103,17 +103,6 @@ export function LightingPanel() {
           </button>
         </fieldset>
       </div>
-      <aside className="development-banner" role="note" aria-label="RGB lighting status">
-        <span aria-hidden="true">!</span>
-        <div>
-          <strong>RGB lighting is in development</strong>
-          <p>
-            {editingMode === "effects"
-              ? "Effects are experimental and may need more than one attempt."
-              : "Per-key RGB is experimental and not working reliably yet. You can still apply it for testing."}
-          </p>
-        </div>
-      </aside>
       <LightingKeyboard {...keyboardProps} />
       <p className="keyboard-context">
         {editingMode === "effects" ? (
@@ -122,7 +111,7 @@ export function LightingPanel() {
             changes are sent only when you apply them.
           </>
         ) : (
-          "Click or drag to paint · use arrow keys to move · apply when your layout is ready."
+          "Click or drag to paint · use arrow keys to move · Apply starts live RGB."
         )}
       </p>
       {editingMode === "effects" ? (

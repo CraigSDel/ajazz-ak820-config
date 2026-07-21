@@ -1,12 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDeviceSession } from "../device/DeviceSession";
-import {
-  applyCustomLighting,
-  canUseCustomLighting,
-  readCustomLighting,
-  restoreCustomLighting,
-  type CustomLightingBackup,
-} from "../lighting/custom";
+import { applyCustomLighting, canUseCustomLighting } from "../lighting/custom";
 import { hexToRgb } from "../lighting/color";
 import { CUSTOM_LED_COUNT } from "../protocol/custom-lighting";
 import type { RGBColor } from "../protocol/lighting";
@@ -15,15 +9,36 @@ import { LightingKeyboard } from "./LightingKeyboard";
 const BLACK: RGBColor = { red: 0, green: 0, blue: 0 };
 const emptyColors = () => Array.from({ length: CUSTOM_LED_COUNT }, () => ({ ...BLACK }));
 
-export function useCustomLightingEditor() {
+export function useCustomLightingEditor(active = true) {
   const { controller, connected, activeOperation, runOperation } = useDeviceSession();
   const [colors, setColors] = useState<RGBColor[]>(emptyColors);
   const [paintColor, setPaintColor] = useState("#ff0000");
-  const [brightness, setBrightness] = useState(6);
-  const [backup, setBackup] = useState<CustomLightingBackup | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [streaming, setStreaming] = useState(false);
+  const sending = useRef(false);
   const available = connected && canUseCustomLighting(controller);
   const busy = activeOperation !== null;
+
+  useEffect(() => {
+    if (!active) setStreaming(false);
+  }, [active]);
+
+  useEffect(() => {
+    if (!active || !streaming || !available || busy) return;
+    const timer = window.setInterval(async () => {
+      if (sending.current) return;
+      sending.current = true;
+      try {
+        await applyCustomLighting(controller, colors);
+      } catch (error) {
+        setStreaming(false);
+        setStatus(message(error));
+      } finally {
+        sending.current = false;
+      }
+    }, 130);
+    return () => window.clearInterval(timer);
+  }, [active, available, busy, colors, controller, streaming]);
 
   const paint = (ledIds: readonly number[], color = hexToRgb(paintColor)) => {
     setColors((current) => {
@@ -33,39 +48,12 @@ export function useCustomLightingEditor() {
     });
   };
 
-  const readFromKeyboard = async () => {
-    setStatus("Reading current custom layout…");
-    try {
-      const result = await runOperation("custom RGB", () => readCustomLighting(controller));
-      const next = emptyColors();
-      for (const color of result.colors) next[color.ledId] = color;
-      setColors(next);
-      setBackup(result);
-      setStatus("Current layout loaded and backed up.");
-    } catch (error) {
-      setStatus(message(error));
-    }
-  };
-
   const applyToKeyboard = async () => {
     setStatus("Applying custom RGB…");
     try {
-      const result = await runOperation("custom RGB", () =>
-        applyCustomLighting(controller, colors, brightness),
-      );
-      setBackup(result);
-      setStatus("Custom RGB applied.");
-    } catch (error) {
-      setStatus(message(error));
-    }
-  };
-
-  const restoreBackup = async () => {
-    if (!backup) return;
-    setStatus("Restoring previous lighting…");
-    try {
-      await runOperation("custom RGB", () => restoreCustomLighting(controller, backup));
-      setStatus("Previous lighting restored.");
+      await runOperation("custom RGB", () => applyCustomLighting(controller, colors));
+      setStreaming(true);
+      setStatus("Live custom RGB active. Keep the Per-key panel open.");
     } catch (error) {
       setStatus(message(error));
     }
@@ -75,14 +63,19 @@ export function useCustomLightingEditor() {
     <section className="custom-lighting" aria-labelledby="custom-lighting-title">
       <div className="custom-lighting-heading">
         <div>
-          <p className="eyebrow">Per-key mode · static only</p>
+          <p className="eyebrow">Per-key mode · live lighting</p>
           <h3 id="custom-lighting-title">Custom per-key RGB</h3>
           <p>Choose one color and paint keys directly on the preview.</p>
         </div>
         <span className={`capability-badge ${available ? "is-available" : ""}`}>
-          {available ? "Command interface detected" : "Command interface unavailable"}
+          {available ? "Wired interface ready" : "Connect keyboard to apply"}
         </span>
       </div>
+
+      <p className="effect-behavior" role="note">
+        The keyboard does not store custom per-key layouts. Keep this panel open to stream your
+        colors; stopping live RGB or leaving Per-key restores the keyboard&apos;s saved preset.
+      </p>
 
       <div className="custom-simple-tools">
         <label className="custom-color-control">
@@ -96,20 +89,6 @@ export function useCustomLightingEditor() {
             />
             <strong>{paintColor.toUpperCase()}</strong>
           </span>
-        </label>
-        <label>
-          Brightness
-          <select
-            aria-label="Custom RGB brightness"
-            value={brightness}
-            onChange={(event) => setBrightness(Number(event.target.value))}
-          >
-            {[1, 2, 3, 4, 5, 6].map((value) => (
-              <option value={value} key={value}>
-                {value}
-              </option>
-            ))}
-          </select>
         </label>
         <button
           type="button"
@@ -131,19 +110,13 @@ export function useCustomLightingEditor() {
       </div>
 
       <div className="custom-apply-actions">
-        <button type="button" disabled={!available || busy} onClick={readFromKeyboard}>
-          Read current layout
-        </button>
         <button
           type="button"
           className="primary-action"
           disabled={!available || busy}
-          onClick={applyToKeyboard}
+          onClick={streaming ? () => setStreaming(false) : applyToKeyboard}
         >
-          Apply custom RGB
-        </button>
-        <button type="button" disabled={!available || !backup || busy} onClick={restoreBackup}>
-          Restore previous lighting
+          {streaming ? "Stop live RGB" : "Apply custom RGB"}
         </button>
       </div>
       {status && (

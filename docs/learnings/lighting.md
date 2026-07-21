@@ -73,20 +73,17 @@ table and `src/lighting/effects.ts`, never the numeric protocol constants.
 
 ## Experimental per-key RGB
 
-Per-key RGB uses the optional `0xff67` interface:
+Per-key RGB uses the AK820 Pro's normal 64-byte feature interface. OEM-driver
+captures show `0x04 0x20` setup, eight table reports, and `0x04 0x02` commit.
+The first six table reports contain the 81 records `[device key ID, red, green,
+blue]`; the final two are zero padding. Device IDs follow the captured OEM
+table rather than the editor's sparse preview IDs.
 
-- GET effect `0x13`, GET table `0x14`
-- SET effect `0x23`, SET table `0x24`
-- custom mode `0x80`
-- 128 records of `[LED ID, red, green, blue]`
-
-This protocol came from an AJAZZ web application that does not claim AK820 Pro
-support. It is therefore capability-detected, isolated from presets, and still
-requires physical validation. Reads and writes are serialized because
-interleaving responses corrupts the command stream.
-
-The editor intentionally provides only paint, fill, clear, brightness, apply,
-and session restore. It performs no background or rapid repeated writes.
+Only writing is implemented. Reading and automatic restore remain disabled
+until equivalent AK820 Pro captures establish those transactions. The firmware
+resumes its stored preset after a single table, matching the OEM driver's
+continuous approximately 130 ms retransmission. Streaming stops when the user
+leaves the Per-key panel or presses Stop.
 
 ## Sleep
 
