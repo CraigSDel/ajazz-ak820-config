@@ -1252,6 +1252,59 @@ select {
   gap: 0.75rem;
 }
 
+.image-presets {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.image-presets legend {
+  margin-bottom: 0.55rem;
+  color: #b6bec6;
+  font-size: 0.78rem;
+}
+
+.image-presets > div {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.image-preset {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #171b1f;
+  color: #b6bec6;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.7rem;
+  text-align: left;
+}
+
+.image-preset:hover:not(:disabled) {
+  border-color: #df5c59;
+  background: #22272d;
+}
+
+.image-preset img {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 4px;
+  background: #08090a;
+  object-fit: cover;
+}
+
+.image-preset span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .file-control {
   display: flex;
   align-items: center;

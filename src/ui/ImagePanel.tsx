@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useDeviceSession } from "../device/DeviceSession";
 import { processStaticImage } from "../image/static";
 import { isAnimatedWebP, processAnimatedImage } from "../image/animated";
+import { IMAGE_PRESETS, type ImagePreset } from "../image/presets";
 import { uploadStaticImage, uploadAnimatedImage } from "../operations";
 import { MAX_TFT_FRAMES, SCREEN_WIDTH, SCREEN_HEIGHT } from "../protocol/constants";
 
@@ -115,6 +116,21 @@ export function ImagePanel() {
     }
   };
 
+  const onPreset = async (preset: ImagePreset) => {
+    setStatus(null);
+    setProcessing(true);
+    try {
+      const response = await fetch(preset.url);
+      if (!response.ok) throw new Error(`Could not load ${preset.name}.`);
+      const bytes = await response.arrayBuffer();
+      const file = new File([bytes], preset.fileName, { type: preset.mimeType });
+      await onFiles([file]);
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : "Failed to load preset image");
+      setProcessing(false);
+    }
+  };
+
   return (
     <section className="panel display-panel">
       <header className="display-header">
@@ -136,6 +152,22 @@ export function ImagePanel() {
         {!prepared && <p className="empty-state-copy">Preview</p>}
       </div>
       <div className="display-controls">
+        <fieldset className="image-presets" disabled={inputDisabled}>
+          <legend>Try a bundled image</legend>
+          <div>
+            {IMAGE_PRESETS.map((preset) => (
+              <button
+                type="button"
+                className="image-preset"
+                onClick={() => void onPreset(preset)}
+                key={preset.fileName}
+              >
+                <img src={preset.url} alt="" />
+                <span>{preset.name}</span>
+              </button>
+            ))}
+          </div>
+        </fieldset>
         <label className={`file-control${inputDisabled ? " is-disabled" : ""}`}>
           <span>
             <strong>{processing ? "Preparing images…" : "Choose images"}</strong>

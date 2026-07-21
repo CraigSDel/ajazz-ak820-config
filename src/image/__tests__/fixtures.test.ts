@@ -3,7 +3,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { RGB565_FRAME_BYTES } from "../../protocol/constants";
-import { inspectWebP } from "../animated";
+import { inspectWebP, processAnimatedImage } from "../animated";
 import { processStaticImage } from "../static";
 
 const imagesDirectory = join(process.cwd(), "images");
@@ -12,6 +12,7 @@ type Baseline = {
   sourceSha256: string;
   rgb565Sha256?: string;
   webPInfo?: { animated: boolean; width: number; height: number; frameCount: number };
+  gifInfo?: { frameCount: number; delayMs: number };
 };
 
 const baselines: Record<string, Baseline> = {
@@ -27,6 +28,10 @@ const baselines: Record<string, Baseline> = {
     sourceSha256: "6235cf0e460d21bbaf8644650513ddf6d00016dbbfc82a1730dc022724b2c684",
     webPInfo: { animated: true, width: 500, height: 500, frameCount: 23 },
   },
+  "bye-bye-pokemon.gif": {
+    sourceSha256: "949e99a9f3658ef86b916a1f586a95214bf3a0018151c3103c8cf5489c57c057",
+    gifInfo: { frameCount: 12, delayMs: 50 },
+  },
 };
 
 const mimeTypes: Record<string, string> = {
@@ -34,6 +39,7 @@ const mimeTypes: Record<string, string> = {
   ".jpg": "image/jpeg",
   ".png": "image/png",
   ".webp": "image/webp",
+  ".gif": "image/gif",
 };
 
 function sha256(bytes: Uint8Array): string {
@@ -58,6 +64,12 @@ describe("images regression fixtures", () => {
       expect(sha256(output)).toBe(baseline.rgb565Sha256);
     } else if (baseline.webPInfo) {
       expect(inspectWebP(bytes.buffer)).toEqual(baseline.webPInfo);
+    } else if (baseline.gifInfo) {
+      const { frameCount, delayMs } = baseline.gifInfo;
+      const output = await processAnimatedImage(new File([bytes], name, { type: mimeType }));
+      expect(output.frames).toHaveLength(frameCount);
+      expect(output.delaysMs).toEqual(Array.from({ length: frameCount }, () => delayMs));
+      for (const frame of output.frames) expect(frame).toHaveLength(RGB565_FRAME_BYTES);
     } else {
       throw new Error(`fixture ${name} has no processed-output or WebP baseline`);
     }
