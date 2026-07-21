@@ -179,14 +179,195 @@ export function useCustomLightingEditor() {
         <div>
           <p className="eyebrow">Per-key mode · static only</p>
           <h3 id="custom-lighting-title">Custom per-key RGB</h3>
-          <p>Paint directly on the keyboard. Your draft stays in the browser until you apply it.</p>
+          <p>Build a static layout below, then send it to your keyboard when it is ready.</p>
         </div>
         <span className={`capability-badge ${available ? "is-available" : ""}`}>
           {available ? "Command interface detected" : "Command interface unavailable"}
         </span>
       </div>
+      <div className="custom-editor-grid">
+        <section className="custom-card custom-paint-card" aria-labelledby="paint-tools-title">
+          <div className="custom-card-heading">
+            <div>
+              <h4 id="paint-tools-title">Paint tools</h4>
+              <p>Choose a color, then click or drag across keys in the preview.</p>
+            </div>
+            <span className="selection-count">{selection.size} selected</span>
+          </div>
+          <div className="custom-tools">
+            <label className="custom-color-control">
+              Paint color
+              <span>
+                <input
+                  aria-label="Custom paint color"
+                  type="color"
+                  value={paintColor}
+                  onChange={(event) => rememberColor(event.target.value)}
+                />
+                <strong>{paintColor.toUpperCase()}</strong>
+              </span>
+            </label>
+            <label className="custom-color-control">
+              Gradient end
+              <span>
+                <input
+                  aria-label="Gradient end color"
+                  type="color"
+                  value={gradientColor}
+                  onChange={(event) => setGradientColor(event.target.value)}
+                />
+                <strong>{gradientColor.toUpperCase()}</strong>
+              </span>
+            </label>
+            <label>
+              Brightness
+              <select
+                aria-label="Custom RGB brightness"
+                value={brightness}
+                onChange={(event) => setBrightness(Number(event.target.value))}
+              >
+                {[1, 2, 3, 4, 5, 6].map((value) => (
+                  <option value={value} key={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <fieldset className="recent-colors">
+            <legend>Recent colors</legend>
+            <div>
+              {recentColors.map((color) => (
+                <button
+                  type="button"
+                  aria-label={`Use ${color}`}
+                  style={{ background: color }}
+                  onClick={() => rememberColor(color)}
+                  key={color}
+                />
+              ))}
+            </div>
+          </fieldset>
+          <div className="button-row custom-edit-actions">
+            <button
+              type="button"
+              disabled={!selection.size}
+              onClick={() => paintIds([...selection])}
+            >
+              Paint selection
+            </button>
+            <button type="button" onClick={applyGradient}>
+              Apply gradient
+            </button>
+            <button type="button" onClick={() => paintIds(AK820_KEY_GROUPS.All)}>
+              Fill all
+            </button>
+            <button type="button" onClick={() => paintIds(AK820_KEY_GROUPS.All, BLACK)}>
+              Clear
+            </button>
+            <button
+              type="button"
+              disabled={historyIndex === 0}
+              onClick={() => setHistoryIndex((index) => index - 1)}
+            >
+              Undo
+            </button>
+            <button
+              type="button"
+              disabled={historyIndex >= history.length - 1}
+              onClick={() => setHistoryIndex((index) => index + 1)}
+            >
+              Redo
+            </button>
+          </div>
+        </section>
+
+        <section className="custom-card custom-layout-card" aria-labelledby="quick-layouts-title">
+          <div className="custom-card-heading">
+            <div>
+              <h4 id="quick-layouts-title">Quick layouts</h4>
+              <p>Select a key group or start with a ready-made pattern.</p>
+            </div>
+          </div>
+          <div className="custom-control-group">
+            <span>Key groups</span>
+            <div className="button-row custom-groups">
+              {Object.entries(AK820_KEY_GROUPS).map(([name, ids]) => (
+                <button type="button" onClick={() => setSelection(new Set(ids))} key={name}>
+                  {name}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="custom-control-group">
+            <span>Patterns</span>
+            <div className="button-row custom-presets">
+              {CUSTOM_LIGHTING_PRESETS.map((preset) => (
+                <button type="button" onClick={() => commit(preset.create())} key={preset.name}>
+                  {preset.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section className="custom-card custom-profile-card" aria-labelledby="profiles-title">
+        <div className="custom-card-heading">
+          <div>
+            <h4 id="profiles-title">Profiles</h4>
+            <p>Keep layouts in this browser or move them between devices as JSON.</p>
+          </div>
+        </div>
+        <div className="custom-profiles">
+          <label className="profile-name-control">
+            Profile name
+            <input
+              aria-label="Custom RGB profile name"
+              value={profileName}
+              maxLength={50}
+              onChange={(event) => setProfileName(event.target.value)}
+            />
+          </label>
+          <button type="button" onClick={saveProfile}>
+            Save locally
+          </button>
+          <select
+            aria-label="Saved custom RGB profiles"
+            value={selectedProfile}
+            onChange={(event) => {
+              setSelectedProfile(event.target.value);
+              if (event.target.value) loadProfile(event.target.value);
+            }}
+          >
+            <option value="">Load saved profile…</option>
+            {storedProfiles.map((name) => (
+              <option value={name} key={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+          <button type="button" disabled={!selectedProfile} onClick={deleteProfile}>
+            Delete
+          </button>
+          <button type="button" onClick={() => downloadProfile(profileName, colors)}>
+            Export JSON
+          </button>
+          <label className="file-control compact">
+            Import JSON
+            <input
+              type="file"
+              accept="application/json,.json"
+              onChange={(event) =>
+                event.target.files?.[0] && void importProfile(event.target.files[0])
+              }
+            />
+          </label>
+        </div>
+      </section>
+
       <details className="device-details">
-        <summary>Device details</summary>
+        <summary>Technical device details</summary>
         <dl className="rgb-diagnostics">
           <div>
             <dt>Device</dt>
@@ -207,142 +388,6 @@ export function useCustomLightingEditor() {
         </dl>
       </details>
 
-      <div className="custom-tools">
-        <label>
-          Paint color
-          <input
-            aria-label="Custom paint color"
-            type="color"
-            value={paintColor}
-            onChange={(event) => rememberColor(event.target.value)}
-          />
-        </label>
-        <label>
-          Gradient end
-          <input
-            aria-label="Gradient end color"
-            type="color"
-            value={gradientColor}
-            onChange={(event) => setGradientColor(event.target.value)}
-          />
-        </label>
-        <label>
-          Brightness
-          <select
-            aria-label="Custom RGB brightness"
-            value={brightness}
-            onChange={(event) => setBrightness(Number(event.target.value))}
-          >
-            {[1, 2, 3, 4, 5, 6].map((value) => (
-              <option value={value} key={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <fieldset className="recent-colors">
-        <legend className="visually-hidden">Recent custom RGB colors</legend>
-        {recentColors.map((color) => (
-          <button
-            type="button"
-            aria-label={`Use ${color}`}
-            style={{ background: color }}
-            onClick={() => rememberColor(color)}
-            key={color}
-          />
-        ))}
-      </fieldset>
-
-      <div className="button-row custom-groups">
-        {Object.entries(AK820_KEY_GROUPS).map(([name, ids]) => (
-          <button type="button" onClick={() => setSelection(new Set(ids))} key={name}>
-            {name}
-          </button>
-        ))}
-      </div>
-      <div className="button-row custom-presets">
-        {CUSTOM_LIGHTING_PRESETS.map((preset) => (
-          <button type="button" onClick={() => commit(preset.create())} key={preset.name}>
-            {preset.name}
-          </button>
-        ))}
-      </div>
-      <div className="button-row">
-        <button type="button" disabled={!selection.size} onClick={() => paintIds([...selection])}>
-          Paint selection
-        </button>
-        <button type="button" onClick={applyGradient}>
-          Apply gradient
-        </button>
-        <button type="button" onClick={() => paintIds(AK820_KEY_GROUPS.All)}>
-          Fill all
-        </button>
-        <button type="button" onClick={() => paintIds(AK820_KEY_GROUPS.All, BLACK)}>
-          Clear
-        </button>
-        <button
-          type="button"
-          disabled={historyIndex === 0}
-          onClick={() => setHistoryIndex((index) => index - 1)}
-        >
-          Undo
-        </button>
-        <button
-          type="button"
-          disabled={historyIndex >= history.length - 1}
-          onClick={() => setHistoryIndex((index) => index + 1)}
-        >
-          Redo
-        </button>
-      </div>
-
-      <div className="custom-profiles">
-        <label>
-          Profile name
-          <input
-            aria-label="Custom RGB profile name"
-            value={profileName}
-            maxLength={50}
-            onChange={(event) => setProfileName(event.target.value)}
-          />
-        </label>
-        <button type="button" onClick={saveProfile}>
-          Save locally
-        </button>
-        <select
-          aria-label="Saved custom RGB profiles"
-          value={selectedProfile}
-          onChange={(event) => {
-            setSelectedProfile(event.target.value);
-            if (event.target.value) loadProfile(event.target.value);
-          }}
-        >
-          <option value="">Load saved profile…</option>
-          {storedProfiles.map((name) => (
-            <option value={name} key={name}>
-              {name}
-            </option>
-          ))}
-        </select>
-        <button type="button" disabled={!selectedProfile} onClick={deleteProfile}>
-          Delete local profile
-        </button>
-        <button type="button" onClick={() => downloadProfile(profileName, colors)}>
-          Export JSON
-        </button>
-        <label className="file-control compact">
-          Import JSON
-          <input
-            type="file"
-            accept="application/json,.json"
-            onChange={(event) =>
-              event.target.files?.[0] && void importProfile(event.target.files[0])
-            }
-          />
-        </label>
-      </div>
-
       <label className="checkbox-label custom-risk">
         <input
           type="checkbox"
@@ -352,7 +397,11 @@ export function useCustomLightingEditor() {
         I understand that custom RGB uses an experimental reverse-engineered command and have kept
         the official driver available.
       </label>
-      <div className="button-row">
+      <div className="custom-apply-actions">
+        <div>
+          <strong>Ready to apply?</strong>
+          <span>The current draft remains local until you send it.</span>
+        </div>
         <button type="button" disabled={!available || busy} onClick={loadFromKeyboard}>
           Read and back up current layout
         </button>
