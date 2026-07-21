@@ -57,10 +57,14 @@ export function EffectValidation({
 }) {
   const [observations, setObservations] = useState<Observations>(initialObservations);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
+  const [reportGeneratedAt, setReportGeneratedAt] = useState(() => new Date().toISOString());
   const selected = effectForMode(mode);
   const observation = observations[mode];
   const tested = Object.values(observations).filter(({ result }) => result !== "untested").length;
-  const report = useMemo(() => buildEffectReport(observations), [observations]);
+  const report = useMemo(
+    () => buildEffectReport(observations, reportGeneratedAt),
+    [observations, reportGeneratedAt],
+  );
   const remaining = LIGHTING_EFFECTS.length - tested;
 
   useEffect(() => {
@@ -69,6 +73,7 @@ export function EffectValidation({
 
   const update = (change: Partial<Observation>) => {
     setCopyStatus(null);
+    setReportGeneratedAt(new Date().toISOString());
     setObservations((current) => ({
       ...current,
       [mode]: { ...current[mode], ...change },
@@ -88,13 +93,15 @@ export function EffectValidation({
   };
 
   const recordAndContinue = async (result: Exclude<Result, "untested">) => {
+    const generatedAt = new Date().toISOString();
     const nextObservations = {
       ...observations,
       [mode]: { ...observations[mode], result },
     };
+    setReportGeneratedAt(generatedAt);
     setObservations(nextObservations);
     try {
-      await navigator.clipboard.writeText(buildEffectReport(nextObservations));
+      await navigator.clipboard.writeText(buildEffectReport(nextObservations, generatedAt));
       setCopyStatus("Result saved and report copied to clipboard.");
     } catch {
       setCopyStatus("Result saved. Clipboard unavailable; copy the report below.");
@@ -174,11 +181,14 @@ export function EffectValidation({
   );
 }
 
-export function buildEffectReport(observations: Observations): string {
+export function buildEffectReport(
+  observations: Observations,
+  generatedAt = new Date().toISOString(),
+): string {
   const lines = [
     "# Wired AJAZZ 820 Pro effect test",
     "",
-    `Generated: ${new Date().toISOString()}`,
+    `Generated: ${generatedAt}`,
     "Connection: wired USB",
     "Transaction: AK820 Pro START, MODE_PREAMBLE, MODE_DATA, FINISH feature reports ×2",
     "",
