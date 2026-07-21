@@ -56,24 +56,21 @@ export function LightingPanel() {
     setConfig((current) => ({ ...current, [key]: value }));
 
   const changeMode = (mode: LightingMode) => {
-    const supportedDirections = directionsForMode(mode);
-    setConfig((current) => ({
-      ...current,
-      mode,
-      direction: supportedDirections[0]?.[0] ?? current.direction,
-    }));
+    setConfig((current) => configForMode(current, mode));
   };
 
-  const applyLighting = async () => {
+  const applyConfig = async (nextConfig: LightingConfig) => {
     setStatus("Applying lighting…");
     try {
-      await runOperation("lighting", () => setLighting(controller, config));
-      setAppliedConfig({ ...config, color: { ...config.color } });
-      setStatus("Lighting applied");
+      await runOperation("lighting", () => setLighting(controller, nextConfig));
+      setAppliedConfig({ ...nextConfig, color: { ...nextConfig.color } });
+      setStatus(`Lighting applied to AK820 Pro · mode ${nextConfig.mode}`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Lighting update failed");
     }
   };
+
+  const applyLighting = () => applyConfig(config);
 
   const applySleep = async () => {
     setSleepStatus("Applying sleep timeout…");
@@ -242,7 +239,11 @@ export function LightingPanel() {
               </button>
             </div>
             {status && (
-              <p className="lighting-feedback settings-card-feedback" role="status" aria-live="polite">
+              <p
+                className="lighting-feedback settings-card-feedback"
+                role="status"
+                aria-live="polite"
+              >
                 {status}
               </p>
             )}
@@ -368,7 +369,7 @@ function LevelSelect({
         aria-label={label}
         type="range"
         min={1}
-        max={6}
+        max={5}
         step={1}
         value={value}
         onChange={(event) => onChange(Number(event.target.value) as LightingLevel)}
@@ -379,4 +380,13 @@ function LevelSelect({
 
 function directionsForMode(mode: LightingMode): readonly (readonly [LightingDirection, string])[] {
   return effectForMode(mode).directions;
+}
+
+function configForMode(config: LightingConfig, mode: LightingMode): LightingConfig {
+  const supportedDirections = directionsForMode(mode);
+  return {
+    ...config,
+    mode,
+    direction: supportedDirections[0]?.[0] ?? config.direction,
+  };
 }

@@ -34,10 +34,23 @@ describe("Configurator workspace", () => {
     expect(view.getByRole("heading", { name: "Display image" })).toBeTruthy();
     expect(view.queryByLabelText("Lighting effect")).toBeNull();
 
+    fireEvent.click(view.getByRole("button", { name: "Testing: Hardware effect validation" }));
+    expect(view.getByRole("heading", { name: "Testing" })).toBeTruthy();
+    expect(view.getByText("Manual effect validation")).toBeTruthy();
+
     fireEvent.click(view.getByRole("button", { name: "Device: Connection and time" }));
     expect(view.getByRole("heading", { name: "Device" })).toBeTruthy();
     expect(view.getByRole("button", { name: "Connect keyboard" })).toBeTruthy();
     expect(view.getByRole("button", { name: "Sync now" })).toBeTruthy();
+  });
+
+  test("can hide the hardware testing workspace", () => {
+    const view = render(
+      <DeviceSessionProvider controller={new MockDeviceController()}>
+        <Configurator showTesting={false} />
+      </DeviceSessionProvider>,
+    );
+    expect(view.queryByRole("button", { name: /Testing:/ })).toBeNull();
   });
 
   test("connection summary is a shortcut to device settings", () => {

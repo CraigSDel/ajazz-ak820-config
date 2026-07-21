@@ -1,34 +1,30 @@
-# Validation record
+# Validation
 
 [Learning index](README.md)
 
-Validated on 2026-07-20 from the repository working tree.
-
 ## Automated checks
 
-| Check | Result |
-|---|---|
-| `npm test` | Pass — 19 files, 115 tests |
-| `npm run build` | Pass — TypeScript and Vite production bundle |
-| `npm run lint` | Pass — 47 files, no errors |
-| Desktop render | Pass — Chrome, 1440 × 1000 and large-screen mode at 1728 × 1100 |
-| Narrow render | Responsive stacking checked at 390 × 844; cascade defects corrected |
+Current baseline:
 
-The suite locks four lighting writes, three control-only GET-feature
-handshakes, and no read after MODE_DATA. Sleep similarly performs no read after
-its unnumbered data packet.
+- `npm test`: 25 files, 154 tests
+- `npm run build`: TypeScript and Vite production build
+- `npm run lint`: Biome checks for `src/`
 
-## Evidence boundary
+Tests lock packet bytes, ordering, acknowledgement rules, operation locking,
+error handling, and UI behavior. Preset tests specifically require four feature
+reports and prove that the optional command interface is not used.
 
-This validates source, serialized packets, browser behavior, and layout. It is
-not a substitute for observing the LEDs and TFT. Remaining physical checks are
-in `docs/manual-test.md` and require wired USB-C mode.
+## Physical boundary
 
-## Hardware release checklist
+Automated checks cannot prove that LEDs display the intended effect, that TFT
+uploads persist, or that a firmware revision accepts a packet. Physical results
+from the wired `0x0c45:0x8009` AK820 Pro take precedence over generic metadata.
 
-- Apply Static red and confirm a steady whole-board result.
-- Apply Off, Spectrum/Rainbow, and an animated directional mode.
-- Confirm Up and Down match physical movement.
-- Confirm lighting across reconnect and power cycle.
-- Confirm one-minute sleep and wake behavior.
-- Re-run time sync and static/animated TFT uploads for shared-interface regressions.
+Before release:
+
+- Pass the four preset canaries three times.
+- Record all 20 effects in the Testing workspace.
+- Confirm direction, persistence, sleep, time sync, and TFT uploads.
+- Run per-key tests only when the optional interface is detected.
+
+See the [manual test plan](../manual-test.md).

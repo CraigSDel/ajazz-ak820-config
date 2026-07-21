@@ -6,16 +6,16 @@ A browser-based tool to configure the AJAZZ AK820 Pro mechanical keyboard. Syncs
 
 This is an independent, community-built project based on a reverse-engineered
 device protocol. It is not affiliated with or endorsed by AJAZZ. Time and image
-operations have protocol coverage, while the newer lighting features still need
-broader validation on physical keyboards and firmware variants.
+operations have protocol coverage, while preset and experimental per-key
+lighting still need physical validation on the supported keyboard.
 
 ## Use at your own risk
 
 This tool sends reverse-engineered commands directly to the keyboard and is
 provided without a warranty. Differences between models or firmware revisions
 could cause settings loss, a failed transfer, or require a keyboard reset. Keep
-the official AJAZZ driver available as a recovery option, use a stable wired
-connection, and do not unplug or switch modes while an operation is running.
+a recovery method appropriate to your exact keyboard revision, use a stable
+wired connection, and do not unplug or switch modes during an operation.
 You are responsible for deciding whether to use the tool with your hardware.
 
 ## Requirements
@@ -24,48 +24,36 @@ You are responsible for deciding whether to use the tool with your hardware.
 - **Connection**: USB-C in **wired** mode. The keyboard's vendor HID interface (used for time sync and image upload) is only exposed over USB; Bluetooth and the 2.4 GHz dongle do not expose it.
 - **OS**: any — Chrome's WebHID works the same on macOS, Linux, and Windows.
 
-The device picker currently recognizes USB vendor ID `0x0c45` and the wired
-product IDs `0x8009` (AK820 family) and `0x800a` (AK820 Pro family), as listed
-by the official AJAZZ online driver.
-Other AK820 variants, layouts, and firmware revisions may use different HID
-interfaces and are not currently supported.
+The device picker recognizes the hardware-confirmed wired identity of the
+original AK820 Pro with the 128 × 128 TFT: USB vendor ID `0x0c45`, product ID
+`0x8009`. Other AK820, Max, HE, V2, and Sonix-based keyboards are not supported.
 
 ## Usage
 
 1. Plug the keyboard in via USB-C and set its mode switch to **wired**.
 2. Open <https://craigsdel.github.io/ajazz-ak820-config/> in Chrome or Edge.
 3. Click **Connect keyboard** and grant permission in the device picker.
-4. Use the **Time**, **Lighting**, and **Image** panels. Changes are sent directly
-   to the connected keyboard; there is no account or cloud service.
+4. Use the Lighting, Display, Device, and optional Testing workspaces. Changes
+   are sent directly to the keyboard; there is no account or cloud service.
 
 ## Status
 
-Implemented:
-
 - System time sync to the TFT clock.
-- Static image upload — PNG / JPEG / WebP.
-- Multi-image sequences — choose several still or animated files and upload
-  them as one ordered animation (up to 255 total frames).
-- Animated GIF and WebP upload — frame timing retained; GIF disposal methods 0/1/2/3 honored.
-
-Also implemented:
-
+- Static and animated image upload, including ordered multi-image sequences.
 - RGB lighting effects, color, brightness, speed, rainbow, and direction.
-- Corrected effect names and mode-specific controls derived from the official
-  AJAZZ catalogue, with an explicitly approximate interactive preview.
+- Approximate interactive lighting preview.
 - Experimental custom static per-key RGB with capability detection, direct key
   painting, fill/clear, brightness, and session backup/restore.
 - Lighting sleep timeout.
-- Shared device-operation locking across time, image, and lighting actions.
+- Optional hardware Testing workspace and shared device-operation locking.
 
 Not implemented: key remapping and macro recording; their device protocols
 still require hardware capture and safe restoration research.
 
-Custom RGB requires the keyboard to expose the official `0xff67` framed-command
-HID interface. The editor remains read/write disabled when that interface is
-not detected. The AK820 configuration does not advertise firmware GIF lighting,
-so the editor intentionally creates static layouts only; it does not repeatedly
-write frames to imitate an animation.
+Custom RGB requires the keyboard to expose the optional `0xff67` framed-command
+HID interface. This interface comes from an AJAZZ web application that does not
+claim AK820 Pro support, so it remains experimental and is never used for preset
+effects. The editor remains disabled when the interface is not detected.
 
 ## Limits
 
@@ -77,7 +65,7 @@ write frames to imitate an animation.
 
 This page talks to your keyboard via WebHID. Chrome grants the permission **persistently** until you revoke it at `chrome://settings/content/hid`. The page makes no network requests — image processing and HID transport happen entirely in the browser.
 
-The bundle ships with a strict Content-Security-Policy: no inline scripts, no third-party origins, no framing, no form submission.
+The bundle ships with a strict meta-delivered Content-Security-Policy: no inline scripts, no third-party origins, and no form submission. GitHub Pages does not support custom response headers, so framing restrictions cannot be enforced there: browsers ignore `frame-ancestors` when it is delivered in a `<meta>` element.
 
 ## Development
 
@@ -97,6 +85,15 @@ npm run preview  # preview the production build locally
 Use `npm run test:watch` while developing. Run `npm run format` to format files
 under `src/` with Biome.
 
+The dedicated **Testing** workspace is enabled by default. Configure its
+visibility in `.env.local` (see `.env.example`):
+
+```dotenv
+VITE_SHOW_HARDWARE_TESTING=false
+```
+
+Restart the development server or rebuild after changing this value.
+
 Alternatively, start the app from any directory with:
 
 ```bash
@@ -111,7 +108,7 @@ arguments to Vite (for example, `./start.sh --host`).
 - `src/protocol/` — pure byte-builder functions; fully unit-tested against byte-level fixtures.
 - `src/image/` — File → RGB565 buffer transformations (static and animated).
 - `src/device/` — WebHID-backed `DeviceController` plus a `MockDeviceController` for tests.
-- `src/ui/` — React panels (Connect, TimeSync, Lighting, Image).
+- `src/ui/` — React panels (Connect, TimeSync, Lighting, Testing, Image).
 - `src/operations.ts` — high-level time, lighting, sleep, and image orchestration.
 
 See [`docs/protocol-notes.md`](docs/protocol-notes.md) for byte-level protocol details and [`docs/manual-test.md`](docs/manual-test.md) for the hardware test plan.
@@ -181,9 +178,8 @@ Protocol details derived from these reverse-engineering projects:
 - [aar-rafi/aks075-linux](https://github.com/aar-rafi/aks075-linux) — image upload, AKS075 sibling keyboard.
 - [TaxMachine/ajazz-keyboard-software-linux](https://github.com/TaxMachine/ajazz-keyboard-software-linux) — AK820 Pro cross-check.
 - [Beattrey/ajazz-ak820-config](https://github.com/Beattrey/ajazz-ak820-config) — reference implementation.
-- [AJAZZ online driver](https://ajazz.driveall.cn/) — official WebHID bundle
-  used to cross-check AK820-family TFT configuration, frame payloads, and
-  device-reported limits.
+- [AJAZZ web application](https://ajazz.driveall.cn/) — unsupported on the
+  AK820 Pro and used only as supplementary AK820-family metadata.
 
 ## License
 

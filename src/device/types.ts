@@ -32,7 +32,7 @@ export interface DeviceController {
    * upload callers must abort instead of continuing with corrupt data.
    */
   waitForDataInputReport(timeoutMs: number): Promise<DataView | null>;
-  /** Whether the keyboard exposes the official 0xFF67 framed-command interface. */
+  /** Whether the keyboard exposes the optional 0xFF67 custom-RGB interface. */
   supportsCommandTransport(): boolean;
   /** Exchange all chunks of an official framed command and return its content bytes. */
   exchangeCommand(request: CommandRequest): Promise<Uint8Array>;

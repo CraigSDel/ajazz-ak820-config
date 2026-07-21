@@ -9,7 +9,6 @@ import {
 } from "../operations";
 import { RGB565_FRAME_BYTES } from "../protocol/constants";
 import { LightingDirection, LightingMode } from "../protocol/lighting";
-import { GET_LED_EFFECT_COMMAND, SET_LED_EFFECT_COMMAND } from "../protocol/custom-lighting";
 import { LightingSleepTime } from "../protocol/lighting-sleep";
 
 const LIGHTING_CONFIG = {
@@ -45,41 +44,17 @@ describe("syncTime", () => {
 });
 
 describe("setLighting", () => {
-  test("prefers the official framed LED-effect command when the keyboard exposes it", async () => {
+  test("uses the AK820 Pro feature transaction even when the optional command interface exists", async () => {
     const ctrl = new MockDeviceController({ commandTransport: true });
     await ctrl.connect();
 
     await setLighting(ctrl, { ...LIGHTING_CONFIG, mode: LightingMode.Rolling });
 
-    expect(ctrl.sent).toHaveLength(0);
-    expect(ctrl.commandRequests).toHaveLength(2);
-    expect(ctrl.commandRequests[0]).toMatchObject({
-      command: SET_LED_EFFECT_COMMAND,
-      contentSize: 16,
-    });
-    expect(ctrl.commandRequests[0].data?.[0]).toBe(LightingMode.Rolling);
-    expect(ctrl.commandRequests[1].command).toBe(GET_LED_EFFECT_COMMAND);
+    expect(ctrl.commandRequests).toHaveLength(0);
+    expect(ctrl.sent.map((report) => report.reportId)).toEqual([0x04, 0x04, 0x0b, 0x04]);
   });
 
-  test("retries and reports when the keyboard does not retain the selected effect", async () => {
-    const ctrl = new MockDeviceController({
-      commandTransport: true,
-      ignoreLedEffectWrites: true,
-    });
-    await ctrl.connect();
-
-    await expect(
-      setLighting(ctrl, { ...LIGHTING_CONFIG, mode: LightingMode.Rolling }),
-    ).rejects.toThrow(/reported mode 0.*requested mode 11/i);
-    expect(ctrl.commandRequests.map((request) => request.command)).toEqual([
-      SET_LED_EFFECT_COMMAND,
-      GET_LED_EFFECT_COMMAND,
-      SET_LED_EFFECT_COMMAND,
-      GET_LED_EFFECT_COMMAND,
-    ]);
-  });
-
-  test("sends START, MODE, normalized DATA, and FINISH in order", async () => {
+  test("sends START, MODE, native DATA, and FINISH in order", async () => {
     const ctrl = new MockDeviceController();
     await ctrl.connect();
 
@@ -92,12 +67,12 @@ describe("setLighting", () => {
       "feature",
       "feature",
     ]);
-    expect(ctrl.sent.map((report) => report.reportId)).toEqual([0x04, 0x04, 0x07, 0x04]);
+    expect(ctrl.sent.map((report) => report.reportId)).toEqual([0x04, 0x04, 0x01, 0x04]);
     expect(ctrl.sent.map((report) => report.bytes[0])).toEqual([0x18, 0x13, 0xff, 0xf0]);
-    expect(ctrl.receivedFeatureReportIds).toEqual([0, 0, 0]);
+    expect(ctrl.receivedFeatureReportIds).toEqual([0, 0, 0, 0]);
   });
 
-  test("clamps official level 6 for the legacy 0-5 compatibility transport", async () => {
+  test("defensively clamps level 6 to the AK820 Pro feature range", async () => {
     const ctrl = new MockDeviceController();
     await ctrl.connect();
 
@@ -113,7 +88,7 @@ describe("setLighting", () => {
 
     await expect(setLighting(ctrl, LIGHTING_CONFIG)).rejects.toMatchObject({
       name: "DeviceFailure",
-      error: { kind: "transfer-failed", reportId: LightingMode.Breath },
+      error: { kind: "transfer-failed", reportId: LightingMode.Static },
     });
     expect(ctrl.sent).toHaveLength(2);
   });

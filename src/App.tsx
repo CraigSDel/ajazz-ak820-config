@@ -7,6 +7,7 @@ import { ImagePanel } from "./ui/ImagePanel";
 import { LightingPanel } from "./ui/LightingPanel";
 import { OperationStatus } from "./ui/OperationStatus";
 import { WebHIDDeviceController } from "./device/webhid-controller";
+import { EffectTestingPanel } from "./ui/EffectTestingPanel";
 
 export default function App() {
   const supported = useMemo(() => typeof navigator !== "undefined" && "hid" in navigator, []);
@@ -21,18 +22,24 @@ export default function App() {
   );
 }
 
-type Workspace = "lighting" | "display" | "device";
+type Workspace = "lighting" | "display" | "testing" | "device";
 
-const WORKSPACES: { id: Workspace; label: string; description: string }[] = [
+const BASE_WORKSPACES: { id: Workspace; label: string; description: string }[] = [
   { id: "lighting", label: "Lighting", description: "Effects, colour and sleep" },
   { id: "display", label: "Display", description: "TFT image upload" },
+  { id: "testing", label: "Testing", description: "Hardware effect validation" },
   { id: "device", label: "Device", description: "Connection and time" },
 ];
 
-export function Configurator() {
+const DEFAULT_SHOW_TESTING = import.meta.env.VITE_SHOW_HARDWARE_TESTING !== "false";
+
+export function Configurator({ showTesting = DEFAULT_SHOW_TESTING }: { showTesting?: boolean }) {
   const [workspace, setWorkspace] = useState<Workspace>("lighting");
   const { health } = useDeviceSession();
-  const current = WORKSPACES.find((item) => item.id === workspace) ?? WORKSPACES[0];
+  const workspaces = showTesting
+    ? BASE_WORKSPACES
+    : BASE_WORKSPACES.filter((item) => item.id !== "testing");
+  const current = workspaces.find((item) => item.id === workspace) ?? workspaces[0];
 
   return (
     <div className="app">
@@ -63,7 +70,7 @@ export function Configurator() {
 
       <div className="app-shell">
         <nav className="workspace-nav" aria-label="Configurator sections">
-          {WORKSPACES.map((item) => (
+          {workspaces.map((item) => (
             <button
               type="button"
               key={item.id}
@@ -90,6 +97,7 @@ export function Configurator() {
 
           {workspace === "lighting" && <LightingPanel />}
           {workspace === "display" && <ImagePanel />}
+          {workspace === "testing" && showTesting && <EffectTestingPanel />}
           {workspace === "device" && (
             <div className="device-workspace">
               <ConnectPanel />
@@ -124,6 +132,9 @@ function WorkspaceIcon({ workspace }: { workspace: Workspace }) {
       {workspace === "display" && (
         <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v10a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 15.5v-10ZM9 21h6M12 17v4" />
       )}
+      {workspace === "testing" && (
+        <path d="M9 3h6M10 3v3l-4.5 8.2A4 4 0 0 0 9 20h6a4 4 0 0 0 3.5-5.8L14 6V3M8 13h8" />
+      )}
       {workspace === "device" && (
         <path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" />
       )}
@@ -135,11 +146,7 @@ function healthText(health: ReturnType<typeof useDeviceSession>["health"]): stri
   switch (health) {
     case "disconnected":
       return "Not connected";
-    case "checking":
-      return "Checking keyboard";
-    case "responsive":
+    case "connected":
       return "Keyboard connected";
-    case "unresponsive":
-      return "Keyboard asleep";
   }
 }

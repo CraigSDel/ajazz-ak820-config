@@ -4,13 +4,11 @@
 export const AJAZZ_VENDOR_ID = 0x0c45;
 
 /**
- * Confirmed wired Product IDs used by the official AJAZZ online driver.
- * 0x8009 — AK820 family.
- * 0x800A — AK820 Pro family.
- * Do not add sibling or receiver IDs speculatively: matching a different
- * keyboard could send it incompatible vendor commands.
+ * Confirmed wired identity of the original AK820 Pro with the 128x128 TFT.
+ * Sonix reuses nearby product IDs across unrelated keyboards, so additional
+ * IDs require an AK820 Pro-specific descriptor or USB capture before inclusion.
  */
-export const AK820_PRO_PRODUCT_IDS: readonly number[] = [0x8009, 0x800a] as const;
+export const AK820_PRO_PRODUCT_IDS: readonly number[] = [0x8009] as const;
 
 /** TFT screen dimensions. */
 export const SCREEN_WIDTH = 128;

@@ -1,7 +1,7 @@
 // biome-ignore lint/correctness/noUnusedImports: required by this test file's classic JSX transform
 import React from "react";
 import { describe, expect, test, afterEach } from "vitest";
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { cleanup, render } from "@testing-library/react";
 
 afterEach(cleanup);
 import { MockDeviceController } from "../../device/mock-controller";
@@ -34,19 +34,12 @@ describe("ConnectPanel", () => {
     expect(btn).toBeTruthy();
   });
 
-  test("shows when a connected keyboard responds to the health check", async () => {
+  test("shows when the connected USB interfaces are open without polling firmware", async () => {
     const ctrl = new MockDeviceController();
     await ctrl.connect();
     const { getByRole } = renderPanel(ctrl);
 
-    await waitFor(() => expect(getByRole("status").textContent).toContain("Awake and responding"));
-  });
-
-  test("warns when a connected keyboard does not answer the health check", async () => {
-    const ctrl = new MockDeviceController({ healthCheckResponds: false });
-    await ctrl.connect();
-    const { getByRole } = renderPanel(ctrl);
-
-    await waitFor(() => expect(getByRole("status").textContent).toContain("Not responding"));
+    expect(getByRole("status").textContent).toContain("USB interfaces open");
+    expect(ctrl.receivedFeatureReportIds).toHaveLength(0);
   });
 });

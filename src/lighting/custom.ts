@@ -24,7 +24,7 @@ export async function readCustomLighting(
   controller: DeviceController,
 ): Promise<CustomLightingBackup> {
   requireCommandTransport(controller);
-  // The official driver keeps this endpoint strictly sequential. Interleaving
+  // The supplemental web implementation keeps this endpoint strictly sequential. Interleaving
   // the one-packet effect read with the multi-packet table read can make older
   // 820PRO firmware associate an acknowledgement with the wrong request.
   const previousEffect = await controller.exchangeCommand({

@@ -111,11 +111,19 @@ export function buildCustomModeData(brightness: number): Uint8Array {
   return data;
 }
 
-/** Build the official framed-command payload used by the current AJAZZ web driver. */
-export function buildLedEffectData(config: LightingConfig): Uint8Array {
+/** Build the generic web-driver effect payload; not used for AK820 Pro presets. */
+export function buildLedEffectData(config: LightingConfig, current?: Uint8Array): Uint8Array {
   validateLedEffectConfig(config);
+  if (current && current.byteLength !== 16) {
+    throw new Error(
+      `buildLedEffectData: current effect must contain 16 bytes, got ${current.byteLength}`,
+    );
+  }
 
-  const data = new Uint8Array(16);
+  // The official driver patches the current device record rather than creating
+  // a blank one. Preserve firmware-specific secondary color and effect-type
+  // fields which are not configurable in this UI.
+  const data = current ? current.slice() : new Uint8Array(16);
   data[0] = config.mode;
   data[1] = config.color.red;
   data[2] = config.color.green;
@@ -125,6 +133,7 @@ export function buildLedEffectData(config: LightingConfig): Uint8Array {
   data[9] = config.mode === LightingMode.Off ? 0 : config.brightness;
   data[10] = config.mode === LightingMode.Off ? 0 : config.speed;
   data[11] = config.direction;
+  data[13] = 0;
   data[14] = 0xaa;
   data[15] = 0x55;
   return data;

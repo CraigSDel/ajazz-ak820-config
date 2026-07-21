@@ -17,10 +17,7 @@ export type DeviceOperationName =
   | "lighting"
   | "lighting sleep"
   | "custom RGB";
-export type DeviceHealth = "disconnected" | "checking" | "responsive" | "unresponsive";
-
-const HEALTH_CHECK_INTERVAL_MS = 5_000;
-const HEALTH_CHECK_TIMEOUT_MS = 1_500;
+export type DeviceHealth = "disconnected" | "connected";
 
 type ActiveOperation = { id: number; generation: number; name: DeviceOperationName };
 
@@ -46,14 +43,13 @@ export function DeviceSessionProvider({
 }) {
   const [connected, setConnected] = useState(controller.isConnected());
   const [health, setHealth] = useState<DeviceHealth>(
-    controller.isConnected() ? "checking" : "disconnected",
+    controller.isConnected() ? "connected" : "disconnected",
   );
   const [lastResponseAt, setLastResponseAt] = useState<Date | null>(null);
   const [activeOperation, setActiveOperation] = useState<DeviceOperationName | null>(null);
   const activeRef = useRef<ActiveOperation | null>(null);
   const nextOperationId = useRef(0);
   const generation = useRef(0);
-  const healthCheckRef = useRef<Promise<void> | null>(null);
 
   const clearForDisconnect = useCallback(() => {
     generation.current += 1;
@@ -69,55 +65,13 @@ export function DeviceSessionProvider({
   const connect = useCallback(async () => {
     await controller.connect();
     setConnected(controller.isConnected());
-    setHealth(controller.isConnected() ? "checking" : "disconnected");
+    setHealth(controller.isConnected() ? "connected" : "disconnected");
   }, [controller]);
 
   const disconnect = useCallback(async () => {
     await controller.disconnect();
     clearForDisconnect();
   }, [controller, clearForDisconnect]);
-
-  const probeDevice = useCallback((): Promise<void> => {
-    if (!controller.isConnected() || activeRef.current) return Promise.resolve();
-    if (healthCheckRef.current) return healthCheckRef.current;
-
-    const probeGeneration = generation.current;
-    setHealth((current) => (current === "disconnected" ? "checking" : current));
-    const check = new Promise<DataView | null>((resolve) => {
-      const timer = setTimeout(() => resolve(null), HEALTH_CHECK_TIMEOUT_MS);
-      controller.receiveFeatureReport(0).then(
-        (response) => {
-          clearTimeout(timer);
-          resolve(response);
-        },
-        () => {
-          clearTimeout(timer);
-          resolve(null);
-        },
-      );
-    })
-      .then((response) => {
-        if (generation.current !== probeGeneration || !controller.isConnected()) return;
-        if (response) {
-          setHealth("responsive");
-          setLastResponseAt(new Date());
-        } else {
-          setHealth("unresponsive");
-        }
-      })
-      .finally(() => {
-        if (healthCheckRef.current === check) healthCheckRef.current = null;
-      });
-    healthCheckRef.current = check;
-    return check;
-  }, [controller]);
-
-  useEffect(() => {
-    if (!connected) return;
-    void probeDevice();
-    const interval = setInterval(() => void probeDevice(), HEALTH_CHECK_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, [connected, probeDevice]);
 
   const runOperation = useCallback(
     async <T,>(name: DeviceOperationName, work: () => Promise<T>): Promise<T> => {
@@ -140,15 +94,11 @@ export function DeviceSessionProvider({
       setActiveOperation(name);
 
       try {
-        // A heartbeat may already be reading the control endpoint. Claim the
-        // operation lock immediately, then let that read finish before any
-        // transaction packets are sent.
-        if (healthCheckRef.current) await healthCheckRef.current;
         if (!controller.isConnected()) {
           throw new DeviceFailure({ kind: "device-disconnected" });
         }
         const result = await work();
-        setHealth("responsive");
+        setHealth("connected");
         setLastResponseAt(new Date());
         return result;
       } finally {

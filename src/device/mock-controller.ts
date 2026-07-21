@@ -17,7 +17,6 @@ export class MockDeviceController implements DeviceController {
   private ledEffectData = new Uint8Array(16);
   private readonly options: {
     failSendAt?: number;
-    healthCheckResponds?: boolean;
     dataAckResponds?: boolean;
     commandTransport?: boolean;
     commandResponse?: Uint8Array;
@@ -28,7 +27,6 @@ export class MockDeviceController implements DeviceController {
   constructor(
     options: {
       failSendAt?: number;
-      healthCheckResponds?: boolean;
       dataAckResponds?: boolean;
       commandTransport?: boolean;
       commandResponse?: Uint8Array;
@@ -47,7 +45,7 @@ export class MockDeviceController implements DeviceController {
     return this.connected
       ? {
           vendorId: 0x0c45,
-          productId: this.options.productId ?? 0x800a,
+          productId: this.options.productId ?? 0x8009,
           productName: "Mock AK820 Pro",
         }
       : null;
@@ -81,7 +79,6 @@ export class MockDeviceController implements DeviceController {
       throw new DeviceFailure({ kind: "device-disconnected" });
     }
     this.receivedFeatureReportIds.push(reportId);
-    if (this.options.healthCheckResponds === false) return null;
     return new DataView(new ArrayBuffer(0));
   }
 

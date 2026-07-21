@@ -38,13 +38,8 @@ export function ConnectPanel() {
         <span className="device-health-dot" aria-hidden="true" />
         <span>
           <strong>{healthLabel(health)}</strong>
-          {health === "responsive" && lastResponseAt && (
-            <small>Last response {lastResponseAt.toLocaleTimeString()}</small>
-          )}
-          {health === "unresponsive" && (
-            <small>
-              Press a key to wake the keyboard. The website will check again automatically.
-            </small>
+          {health === "connected" && lastResponseAt && (
+            <small>Last successful command {lastResponseAt.toLocaleTimeString()}</small>
           )}
         </span>
       </div>
@@ -78,11 +73,7 @@ function healthLabel(health: DeviceHealth): string {
   switch (health) {
     case "disconnected":
       return "Not connected";
-    case "checking":
-      return "Checking keyboard…";
-    case "responsive":
-      return "Awake and responding";
-    case "unresponsive":
-      return "Not responding";
+    case "connected":
+      return "USB interfaces open";
   }
 }

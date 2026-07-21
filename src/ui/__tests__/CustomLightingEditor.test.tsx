@@ -24,7 +24,7 @@ async function renderEditor(commandTransport: boolean) {
 }
 
 describe("CustomLightingEditor", () => {
-  test("keeps hardware actions disabled without the official command interface", async () => {
+  test("keeps hardware actions disabled without the optional command interface", async () => {
     const view = await renderEditor(false);
     expect(view.getByText("Command interface unavailable")).toBeTruthy();
     expect(

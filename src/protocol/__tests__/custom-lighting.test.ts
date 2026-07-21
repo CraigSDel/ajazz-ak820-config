@@ -84,4 +84,23 @@ describe("built-in RGB effect payload", () => {
       0x55,
     ]);
   });
+
+  test("preserves firmware-managed secondary color and effect type fields", () => {
+    const current = Uint8Array.from([1, 1, 2, 3, 0xff, 10, 20, 30, 0, 5, 3, 0, 2, 9, 0xaa, 0x55]);
+    const data = buildLedEffectData(
+      {
+        mode: LightingMode.Glittering,
+        color: { red: 255, green: 0, blue: 0 },
+        rainbow: false,
+        brightness: 5,
+        speed: 3,
+        direction: LightingDirection.Left,
+      },
+      current,
+    );
+
+    expect([...data.slice(5, 8)]).toEqual([10, 20, 30]);
+    expect(data[12]).toBe(2);
+    expect(data[13]).toBe(0);
+  });
 });

@@ -678,6 +678,53 @@ fieldset {
   margin: 0;
 }
 
+.effect-validation {
+  grid-column: 1 / -1;
+}
+
+.effect-validation > summary {
+  cursor: pointer;
+}
+
+.effect-validation > summary span {
+  display: inline-grid;
+  gap: 0.2rem;
+  margin-left: 0.5rem;
+}
+
+.effect-validation > summary small {
+  color: var(--muted);
+}
+
+.effect-validation-body {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.validation-results {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.validation-results button.is-active {
+  border-color: #ef6a67;
+  background: #3a2428;
+}
+
+.effect-report {
+  min-height: 14rem;
+  resize: vertical;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: #121519;
+  color: var(--text);
+  font:
+    0.78rem / 1.45 ui-monospace,
+    monospace;
+}
+
 .control-effect,
 .control-color {
   position: relative;

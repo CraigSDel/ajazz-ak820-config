@@ -7,6 +7,9 @@
 The AK820 Pro's 0.85-inch TFT is a 128 × 128 GC9107-driven panel attached to a
 Sonix SN32F299 MCU. The browser reaches two vendor-specific HID interfaces:
 
+The supported wired USB identity is `0x0c45:0x8009`. Nearby Sonix product IDs
+are reused by other keyboards and must not be treated as AK820 Pro evidence.
+
 - **Control interface:** usage page `0xFF13`, interface `3`; 64-byte feature
   reports select operations and carry metadata.
 - **Data interface:** usage page `0xFF68`, interface `2`; 4096-byte output
@@ -17,10 +20,10 @@ and the 2.4 GHz dongle are not substitutes for configuration operations.
 
 ## Evidence provenance
 
-The working image framing was triangulated from a USB capture of the official
-Windows `DeviceDriver.exe`, Ghidra analysis of that driver, and the
+The image framing was triangulated from a USB capture of a Windows driver,
+Ghidra analysis of that driver, and the
 `aar-rafi/aks075-linux` implementation. The gohv project supplied useful
-AK820-Pro-specific context but its legacy static-image framing does not persist
+AK820-Pro-specific context but its alternate static-image framing does not persist
 reliably. Operation-specific conclusions are recorded in
 [Display images](display-images.md#failed-approaches).
 
@@ -36,17 +39,17 @@ interrupt OUT reports.
 
 ## Handshake rule
 
-GET-feature handshakes are valid only for numbered `0x04` control packets. Do
-not apply the read mechanically after every write:
+The direct AK820 Pro implementations perform a best-effort GET-feature
+handshake after every feature write:
 
-- Lighting START, MODE_PREAMBLE, and FINISH: read allowed.
-- Lighting MODE_DATA: no read.
+- Lighting START, MODE_PREAMBLE, MODE_DATA, and FINISH: read.
 - Sleep START and SLEEP_PREAMBLE: read allowed.
 - Unnumbered sleep data: no read.
 - Image chunks: wait for the data-interface ACK input report instead.
 
-Reading after lighting MODE_DATA can abort the firmware transaction. This is a
-logical report distinction, not a timing problem.
+WebHID requests the unnumbered report (`0`) for each handshake. Unsupported or
+stalled reads are non-fatal, matching the reference implementations' error
+handling.
 
 ## Timing
 

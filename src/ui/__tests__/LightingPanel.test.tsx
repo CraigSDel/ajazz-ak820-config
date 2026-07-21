@@ -37,11 +37,11 @@ describe("LightingPanel", () => {
     ).toContain("#0a84ff");
   });
 
-  test("uses the official 1 through 6 effect levels and allows RGB steady lighting", async () => {
+  test("uses the AK820 Pro 1 through 5 preset levels and allows RGB steady lighting", async () => {
     const view = await renderPanel();
     const brightness = view.getByLabelText("Brightness") as HTMLInputElement;
     expect(brightness.min).toBe("1");
-    expect(brightness.max).toBe("6");
+    expect(brightness.max).toBe("5");
     expect(view.getByText("Built-in multicolor palette")).toBeTruthy();
   });
 
@@ -102,7 +102,7 @@ describe("LightingPanel", () => {
     );
   });
 
-  test("hides controls which the official effect metadata marks unsupported", async () => {
+  test("hides controls which the effect metadata marks unsupported", async () => {
     const view = await renderPanel();
     expect(view.queryByLabelText("Speed")).toBeNull();
     selectEffect(view, "Spectrum Cycle");
@@ -125,12 +125,10 @@ describe("LightingPanel", () => {
   test("submits lighting through the device transaction", async () => {
     const { controller, getByRole, getByText } = await renderPanel();
     fireEvent.click(getByRole("button", { name: "Apply to keyboard" }));
-    expect(
-      (getByRole("button", { name: "Applying…" }) as HTMLButtonElement).disabled,
-    ).toBe(true);
+    expect((getByRole("button", { name: "Applying…" }) as HTMLButtonElement).disabled).toBe(true);
     expect(getByRole("status").textContent).toBe("Applying lighting…");
     await waitFor(() => expect(controller.sent).toHaveLength(4));
-    await waitFor(() => expect(getByText("Lighting applied")).toBeTruthy());
+    await waitFor(() => expect(getByText(/Lighting applied/)).toBeTruthy());
   });
 
   test("displays a lighting transfer failure", async () => {
@@ -143,8 +141,10 @@ describe("LightingPanel", () => {
   test("marks changes as applied and re-enables apply after another edit", async () => {
     const view = await renderPanel();
     fireEvent.click(view.getByRole("button", { name: "Apply to keyboard" }));
-    await waitFor(() => expect(view.getByText("Lighting applied")).toBeTruthy());
-    expect((view.getByRole("button", { name: "Applied" }) as HTMLButtonElement).disabled).toBe(true);
+    await waitFor(() => expect(view.getByText(/Lighting applied/)).toBeTruthy());
+    expect((view.getByRole("button", { name: "Applied" }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
 
     fireEvent.change(view.getByLabelText("Brightness"), { target: { value: "4" } });
     expect(view.getByRole("button", { name: "Apply to keyboard" })).toBeTruthy();
@@ -166,6 +166,7 @@ describe("LightingPanel", () => {
     expect(controller.sent[2].bytes[7]).toBe(1);
     await waitFor(() => expect(getByText("Sleep timeout applied")).toBeTruthy());
   });
+
 });
 
 function selectEffect(view: Awaited<ReturnType<typeof renderPanel>>, name: string) {

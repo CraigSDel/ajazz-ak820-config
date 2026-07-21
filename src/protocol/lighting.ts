@@ -35,7 +35,7 @@ export const LightingDirection = {
 
 export type LightingDirection = (typeof LightingDirection)[keyof typeof LightingDirection];
 
-/** Superset of official command levels (1-6) and legacy/off level 0. */
+/** Superset of optional command levels (1-6) and feature/off level 0. */
 export type LightingLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 export type RGBColor = {
@@ -84,7 +84,6 @@ export function buildLightingDataReport(config: LightingConfig): ReportMessage {
   validateLevel("speed", config.speed);
   validateDirection(config.direction);
 
-  const effectiveMode = effectiveLightingMode(config.mode);
   const bytes = new Uint8Array(PAYLOAD_LENGTH);
   bytes[0] = config.color.red;
   bytes[1] = config.color.green;
@@ -97,13 +96,7 @@ export function buildLightingDataReport(config: LightingConfig): ReportMessage {
   bytes[13] = DELIMITER_LOW;
   bytes[14] = DELIMITER_HIGH;
 
-  return { reportId: effectiveMode, bytes };
-}
-
-function effectiveLightingMode(mode: LightingMode): LightingMode {
-  if (mode === LightingMode.Off) return LightingMode.SingleOn;
-  if (mode === LightingMode.Static) return LightingMode.Breath;
-  return mode;
+  return { reportId: config.mode, bytes };
 }
 
 function buildLightingControlReport(command: number): ReportMessage {

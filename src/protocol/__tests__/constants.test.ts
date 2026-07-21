@@ -16,10 +16,8 @@ describe("protocol constants", () => {
     expect(AJAZZ_VENDOR_ID).toBe(0x0c45);
   });
 
-  test("product IDs includes the confirmed wired PID 0x8009", () => {
-    expect(AK820_PRO_PRODUCT_IDS).toContain(0x8009);
-    expect(AK820_PRO_PRODUCT_IDS).toContain(0x800a);
-    expect(AK820_PRO_PRODUCT_IDS).not.toContain(0xfefe);
+  test("only includes the hardware-confirmed original AK820 Pro PID", () => {
+    expect(AK820_PRO_PRODUCT_IDS).toEqual([0x8009]);
   });
 
   test("screen is 128x128", () => {

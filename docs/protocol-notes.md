@@ -2,8 +2,8 @@
 
 These are the concrete byte-level layouts and transport details for the AJAZZ
 AK820 Pro keyboard's vendor HID protocol (time sync + 128×128 RGB565 TFT
-image/GIF upload), extracted from three reference implementations and the
-official AJAZZ online driver's public web bundle.
+image/GIF upload), extracted from three reference implementations and
+supplementary metadata from an AJAZZ web bundle.
 
 Repository-derived values below are verified against a specific file and line.
 Online-driver findings identify the dated, content-hashed bundle inspected.
@@ -26,12 +26,13 @@ against real hardware.
   — cross-check for AK820 Pro control reports. Files used:
   `src/keyboards/ak820pro.cpp`, `src/keyboards/ak820pro.hpp`,
   `src/keyboards/keyboarddefs.hpp`.
-- **AJAZZ online driver** — official WebHID application at
+- **AJAZZ web application** — WebHID application at
   <https://ajazz.driveall.cn/>. Bundle inspected on 2026-07-21:
   `assets/layout-classic-ZwpimY8M.js` (site response last-modified
   2026-07-01). It contains direct AK820-family device configurations, TFT UI
   state, image decoding, RGB565 conversion, device-reported frame limits, and
-  the generic `SET_TFT_USER_ANIMATION` transport. Because the deployed asset is
+  the generic `SET_TFT_USER_ANIMATION` transport. It does not claim AK820 Pro
+  support and is not primary hardware evidence. Because the deployed asset is
   minified and may be replaced, retain the bundle hash and inspection date when
   comparing future behavior.
 
@@ -725,12 +726,12 @@ transaction:
 3. **MODE_DATA** — the mode-specific report described below.
 4. **FINISH** — command `0xF0`, byte 8 = `0x01`.
 
-Issue a GET-feature handshake after the three `0x04` control packets only.
-Do not read after MODE_DATA: the direct AK820 Pro implementation notes that the
-device does not support GET_REPORT for mode-valued packets and repeated reads
-can crash/abort the firmware state machine.
+Issue a best-effort GET-feature handshake after all four packets. Both direct
+AK820 Pro implementations do this, including after MODE_DATA, and ignore read
+errors. In WebHID the application requests unnumbered report `0` because the
+control descriptor does not expose the mode values as declared report IDs.
 
-The mode data packet uses **byte 0 as the report ID = the effective lighting
+The mode data packet uses **byte 0 as the report ID = the requested lighting
 mode value** (not `0x04`). `ReportMessage` strips that leading byte into its
 `reportId` field; `WebHIDDeviceController` reconstructs the complete 64-byte
 unnumbered WebHID payload. Sub-fields:
@@ -764,12 +765,10 @@ single-on (`0x02`), single-off (`0x03`), glittering (`0x04`), falling
 (`0x0D`), launch (`0x0E`), ripples (`0x0F`), flowing (`0x10`), pulsating
 (`0x11`), tilt (`0x12`), and shuttle (`0x13`).
 
-The firmware does not apply off and static directly. Before building mode data:
-
-- off is transmitted as single-on (`0x02`) with brightness and speed both 0;
-- static is transmitted as breath (`0x07`) with speed 0.
-
-The requested RGB and rainbow values remain present in both packets.
+Transmit every requested mode directly. Off uses report byte `0x00` with
+brightness and speed both 0; Static uses report byte `0x01` with speed 0. The
+previous SingleOn/Breath substitution was not present in either cited AK820 Pro
+implementation and hardware testing showed that it left Steady dark.
 
 ### Direction caveat
 
@@ -780,10 +779,12 @@ explicit mode-aware direction handling and is the newer direct AK820 Pro
 implementation. Scrolling up/down must be verified on physical hardware before
 the lighting interface is considered complete.
 
-### Official framed custom-RGB transport
+### Supplemental framed custom-RGB transport
 
-The July 2026 AJAZZ online-driver bundle adds a separate command interface on
-usage page `0xFF67`. This is not the legacy feature-report transaction above.
+The July 2026 AJAZZ web bundle documents a separate command interface on usage
+page `0xFF67`. The web application does not claim AK820 Pro support, so this is
+supplementary evidence for experimental custom RGB rather than the preset
+transport. It is not the feature-report transaction above.
 Reports use an 8-byte header followed by descriptor-sized payload chunks:
 
 | Offset | Field |
@@ -806,17 +807,21 @@ The web app discovers report size from the HID descriptor, requires a matching
 response command after every packet (matching the official driver's default), and does not expose the writer if
 the `0xFF67` interface is missing.
 
-Built-in effects also use SET effect `0x23` in the current official web driver.
+Built-in effects also use SET effect `0x23` in the generic web application.
 Its 16-byte content is `[mode, R, G, B, 0xFF, secondary R, secondary G,
 secondary B, color mode, brightness, speed, direction, effect type, 0,
-0xAA, 0x55]`. This path is preferred in WebHID because the older feature-report
-transaction relies on mode-valued report IDs that may not be declared by the
-device descriptor; Chromium can reject or rewrite those reports.
+0xAA, 0x55]`. Physical AK820 Pro testing rejected this as the preferred preset
+path: most modes were acknowledged but remained dark. The app therefore uses
+the hardware-specific feature transaction for all presets.
+
+The generic web UI reads the effect during device initialization, then sends one
+SET when a setting changes. This behavior is retained only as protocol research;
+the AK820 Pro preset operation does not issue these commands.
 
 The AK820 and 820PRO device configurations set `minBrightness = 1`,
 `maxBrightness = 6`, `minSpeed = 1`, and `maxSpeed = 6`. Those bounds apply to
-the framed command payload. They do not replace the legacy feature packet's
-0–5 bounds; level 6 is clamped to 5 when the compatibility transaction is used.
+the framed command payload. They do not replace the AK820 Pro preset packet's
+0–5 bounds; any programmatic level 6 preset input is clamped to 5.
 The official catalogue exposes modes 1–19 without device-specific exclusions,
 mode 0 through its lighting switch, and custom mode 128. Modes 2, 3, and 13–15
 are key-reactive. Modes 6 and 8 have firmware-selected colors. Modes 10, 11,

@@ -2,11 +2,6 @@ import { DeviceFailure } from "./device/errors";
 import type { DeviceController } from "./device/types";
 import { RGB565_FRAME_BYTES } from "./protocol/constants";
 import {
-  buildLedEffectData,
-  GET_LED_EFFECT_COMMAND,
-  SET_LED_EFFECT_COMMAND,
-} from "./protocol/custom-lighting";
-import {
   buildAnimatedCfgReport,
   buildAnimatedDataChunks,
   buildAnimatedSaveReport,
@@ -39,8 +34,6 @@ export type ProgressCallback = (fraction: number) => void;
 const INTER_PACKET_DELAY_MS = 50;
 const POST_SAVE_DELAY_MS = 100;
 const CHUNK_ACK_TIMEOUT_MS = 300;
-const EFFECT_READBACK_DELAY_MS = 100;
-const EFFECT_RETRY_DELAY_MS = 400;
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -85,26 +78,11 @@ export async function syncTime(ctrl: DeviceController, date: Date): Promise<void
 }
 
 export async function setLighting(ctrl: DeviceController, config: LightingConfig): Promise<void> {
-  // The current AJAZZ web driver uses command 0x23 on usage page 0xFF67.
-  // Prefer it when present: unlike the legacy feature path, it does not depend
-  // on sending arbitrary, descriptor-undeclared HID report IDs through WebHID.
-  if (ctrl.supportsCommandTransport()) {
-    const data = buildLedEffectData(config);
-    let reportedMode = await writeAndReadBackEffect(ctrl, data, EFFECT_READBACK_DELAY_MS);
-    if (reportedMode === config.mode) return;
-
-    // Some AK820 Pro firmware acknowledges mode changes before it has committed
-    // them. Match the official driver's 500 ms settling window and retry once.
-    reportedMode = await writeAndReadBackEffect(ctrl, data, EFFECT_RETRY_DELAY_MS);
-    if (reportedMode === config.mode) return;
-
-    throw new DeviceFailure({
-      kind: "validation",
-      message: `Keyboard reported mode ${reportedMode} after applying requested mode ${config.mode}. The effect was not retained.`,
-    });
-  }
-
-  const legacyConfig: LightingConfig = {
+  // Built-in effects on the original wired AK820 Pro use the captured
+  // four-report feature transaction. The optional 0xFF67 command interface is
+  // retained only for custom per-key RGB; its generic SET-effect command is not
+  // validated for these presets and can acknowledge modes that remain dark.
+  const featureConfig: LightingConfig = {
     ...config,
     brightness: Math.min(config.brightness, 5) as LightingConfig["brightness"],
     speed: Math.min(config.speed, 5) as LightingConfig["speed"],
@@ -112,42 +90,19 @@ export async function setLighting(ctrl: DeviceController, config: LightingConfig
   const reports = [
     buildLightingStartReport(),
     buildLightingModePreambleReport(),
-    buildLightingDataReport(legacyConfig),
+    buildLightingDataReport(featureConfig),
     buildLightingFinishReport(),
   ];
 
   for (const report of reports) {
     await ctrl.sendFeatureReport(report);
-    // The keyboard only supports GET_FEATURE for 0x04 control packets.
-    // Reading after the mode-specific data packet can abort its state machine.
-    if (report.reportId === 0x04) await ctrl.receiveFeatureReport(0);
+    // Both direct AK820 Pro implementations perform a best-effort GET_FEATURE
+    // handshake after every SET, including the mode-valued data packet. The
+    // controller deliberately treats unsupported reads as non-fatal.
+    await ctrl.receiveFeatureReport(0);
     await sleep(INTER_PACKET_DELAY_MS);
   }
   await sleep(POST_SAVE_DELAY_MS);
-}
-
-async function writeAndReadBackEffect(
-  ctrl: DeviceController,
-  data: Uint8Array,
-  delayMs: number,
-): Promise<number> {
-  await ctrl.exchangeCommand({
-    command: SET_LED_EFFECT_COMMAND,
-    contentSize: data.byteLength,
-    data,
-  });
-  await sleep(delayMs);
-  const response = await ctrl.exchangeCommand({
-    command: GET_LED_EFFECT_COMMAND,
-    contentSize: 16,
-  });
-  if (response.byteLength !== 16) {
-    throw new DeviceFailure({
-      kind: "validation",
-      message: `Keyboard returned ${response.byteLength} effect bytes; expected 16.`,
-    });
-  }
-  return response[0];
 }
 
 export async function setLightingSleepTime(

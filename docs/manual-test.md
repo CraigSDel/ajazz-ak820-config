@@ -1,152 +1,96 @@
-# Manual Test Plan — AK820 Pro Configurator
+# AK820 Pro manual test plan
 
-Run with the real keyboard plugged in via USB-C (wired mode preferred for first test).
+Use the original AK820 Pro in wired USB-C mode (`0x0c45:0x8009`) with a current
+Chromium browser. Do not test through Bluetooth or the 2.4 GHz receiver.
 
-## Pre-flight
+## 1. Connection and time
 
-- Browser: Chrome stable (>= 134) or Edge stable.
-- Keyboard: AJAZZ AK820 Pro, plugged in via USB-C, **wired mode** switch.
-- Dev server running (`npm run dev`) and page open at `http://localhost:5173/ajazz-ak820-config/`.
+1. Connect the keyboard from the Device workspace.
+2. Confirm the UI reports **Keyboard connected**.
+3. Click **Sync now** and check the TFT clock.
 
-## Tests
+Pass: connection succeeds and the clock updates without a disconnect or transfer
+error.
 
-### T1 — Connection
+## 2. TFT images
 
-1. Click **Connect keyboard**.
-2. WebHID picker appears; select "AJAZZ AK820 Pro" (or equivalent label).
-3. UI shows "Status: Connected".
+1. Upload a square PNG.
+2. Upload a wide PNG and confirm the whole image remains visible with padding.
+3. Upload a short animated GIF or WebP.
+4. During a second animation upload, disconnect the cable and confirm the app
+   reports failure and can reconnect.
 
-Pass criteria: no error toast, panels become enabled.
+Pass: static images match the preview, animation timing is reasonable, and the
+app recovers after interruption. Transparent padding should appear black.
 
-### T2 — Time sync
+## 3. Preset lighting canaries
 
-1. Click **Sync now** in the Time panel.
-2. Observe the TFT screen.
+In Lighting, test each of these three times before running the full sweep:
 
-Pass criteria: TFT clock updates to host system time within ~1 minute.
+1. Off
+2. Steady, red, brightness 5
+3. Spectrum Cycle
+4. Twinkling Stars
 
-### T3 — Static image
+Pass: every canary works three consecutive times. Stop here if one fails; a
+full sweep would add noise rather than isolate the transport problem.
 
-1. Pick a PNG file ~512×512.
-2. Confirm the preview shows the complete image fitted into 128×128 with dominant-color padding.
-3. Click **Upload to keyboard**.
-4. Observe TFT.
+## 4. All preset effects
 
-Pass criteria: progress bar advances to 100%, image appears on TFT (orientation, colors, aspect should match preview).
+1. Open the **Testing** workspace. If it is hidden, set
+   `VITE_SHOW_HARDWARE_TESTING=true` and restart or rebuild.
+2. Apply the current test effect and observe the physical keyboard for at least
+   one second.
+3. For reactive modes, press several physical keys.
+4. Record Works, Wrong effect, No lighting, or Connection error. Use Connection
+   error only for an explicit application error.
+5. Click **Select and apply next untested effect** until all 20 are recorded.
+6. Copy the generated report.
 
-### T4 — Static image — non-square
+Pass: every mode has a physical result. An accepted command alone is not a pass.
 
-1. Pick a PNG that is 1000×400 (wide).
-2. Verify the entire image remains visible with dominant-color padding above and below.
-3. Upload.
+## 5. Direction
 
-Pass criteria: TFT shows the same fitted image and letterboxing as the preview.
+1. Apply Cross-Wave with Up, then Down.
+2. Apply Rolling Wave with Left, then Right.
 
-For a transparent PNG or GIF, verify the app does not add dominant-color
-padding. Transparent areas and unused space should resolve to black because the
-TFT's RGB565 format cannot carry an alpha channel.
+Pass: movement matches each label. Record reversed Up/Down values before
+changing the mapping because references disagree.
 
-### T5 — Animated GIF
+## 6. Sleep
 
-1. Pick a small GIF (~3-10 frames).
-2. Preview shows first frame.
-3. Upload.
+1. Apply a one-minute lighting timeout.
+2. Leave the keyboard untouched.
 
-Pass criteria: TFT animates with timings approximately matching the GIF.
+Pass: lighting turns off after approximately one minute and wakes normally.
 
-Repeat with an animated WebP. It should also upload as multiple frames with
-approximately matching timings; a static WebP should remain a static upload.
+## 7. Experimental per-key RGB
 
-### T6 — Disconnect mid-upload
+Only continue if the Per-key panel detects the optional command interface.
 
-1. Start uploading a GIF (T5).
-2. Unplug USB during upload.
-3. UI shows error, progress halts.
-4. Re-plug, click Connect, retry upload.
+1. Read and save the current layout.
+2. Paint only Esc red and apply.
+3. Repeat with Q, Space, the ISO key if present, arrows, Delete, End, Page Up,
+   and Page Down.
+4. Test Fill all and Clear all.
+5. Restore the saved lighting.
+6. Reload and power-cycle to record persistence.
 
-Pass criteria: app recovers cleanly; second upload succeeds.
+Pass: visual keys map to physical LEDs, editing causes no traffic before Apply,
+and Restore recovers the previous state.
 
-### T7 — Re-visit
+## 8. Shared-operation safety
 
-1. Close the tab.
-2. Reopen the URL.
-3. Click Connect.
+1. Start a large animation upload.
+2. Confirm time, lighting, sleep, and connection actions are disabled.
+3. Repeat while disconnecting the keyboard.
 
-Pass criteria: no permission re-prompt (origin-scoped permission persists).
+Pass: operations never overlap, the active operation clears after failure, and
+reconnection works.
 
-### T8 — Static red lighting
+## Known boundary
 
-1. In Lighting, select **Static**, choose red (`#ff0000`), brightness 5, and
-   click **Apply lighting**.
-
-Pass criteria: all keyboard lighting becomes steady red and the UI reports
-"Lighting applied".
-
-### T9 — Lighting off and rainbow
-
-1. Select **Off** and apply; confirm all key lighting turns off.
-2. Select **Spectrum**, enable **Rainbow**, and apply.
-
-Pass criteria: off fully disables lighting and Spectrum starts a rainbow effect.
-
-### T10 — Direction encoding
-
-1. Select **Scrolling**, apply once with Up and once with Down.
-2. Select **Rolling**, apply once with Left and once with Right.
-
-Pass criteria: every direction matches its label. If Up and Down are reversed,
-record it before changing the protocol mapping because the two reference
-implementations disagree on those byte values.
-
-### T11 — Lighting sleep timeout
-
-1. Select **1 minute** and click **Apply sleep timeout**.
-2. Leave the keyboard idle without pressing keys.
-
-Pass criteria: keyboard lighting turns off after approximately one minute.
-
-### T11a — Custom RGB capability and backup
-
-1. Connect PID `0x8009`, then repeat with PID `0x800a`.
-2. Confirm the Per-key panel reports **Command interface detected**.
-3. Click **Read current layout**.
-4. Record whether reading changes any keyboard lighting (it must not).
-
-Pass criteria: the current table loads without a write and Restore becomes
-available only after a valid backup exists.
-
-### T11b — LED mapping and restoration
-
-1. Save the current state using T11a.
-2. Clear the editor, paint only Esc red, apply, and verify only Esc changes.
-3. Repeat with Q, Space, ISO key, arrows, Delete, End, Page Up, and Page Down.
-4. Test **Fill all** and **Clear all**, then paint another individual key.
-5. Click **Restore previous lighting**.
-
-Pass criteria: every visual key maps to the expected physical LED and the
-previous effect and colors return. Record layout/locale and any mismatched ID.
-
-### T11c — Custom RGB persistence and write discipline
-
-1. Apply one static custom layout.
-2. Reload the page without applying again, then reconnect and power-cycle.
-3. Confirm painting, fill, clear, color, and brightness changes cause no HID
-   traffic until Apply is pressed.
-
-Pass criteria: persistence behavior is documented and there are no background
-or rapid repeated writes.
-
-### T12 — Shared operation safety
-
-1. Start a large animated image upload.
-2. While it runs, inspect Time, Lighting, Sleep, and connection controls.
-3. Repeat, unplugging the keyboard during the upload.
-
-Pass criteria: other device actions are disabled and the active operation is
-shown. After disconnect, the operation indicator clears and reconnect works.
-
-## Known protocol risks
-
-The protocol byte layouts in `src/protocol/image.ts` use the AKS075/Windows-driver framing (sub-command `0x03`, 4096-byte chunks, 256-byte frame header). If T3/T4/T5 fail, the alternative gohv/AK820-Pro framing is documented in `docs/protocol-notes.md` under "gohv / AK820 Pro alternate framing" (sub-command `0x02`, 4123-byte chunks, no 256-byte header, plus a `FINISH` packet `04 F0` at the end). Adjusting `src/protocol/image.ts` to that framing requires updating the corresponding fixture in `src/protocol/__tests__/`.
-
-If T2 fails, the time-sync layout is unambiguous across all three reference repos — first check WebHID permission and that the keyboard is in wired mode, not the keyboard protocol.
+Preset lighting uses the AK820 Pro feature-report transaction. Per-key RGB is a
+separate experimental protocol. TFT framing still combines AK820 Pro-specific
+and closely related AKS075 evidence; alternatives are preserved in
+[`protocol-notes.md`](protocol-notes.md) if physical display tests fail.
