@@ -1,6 +1,7 @@
 import { type CSSProperties, type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { effectForMode } from "../lighting/effects";
 import { AK820_KEY_ROWS } from "../lighting/keyboard-layout";
+import { rgbToHex } from "../lighting/color";
 import {
   type LightingConfig,
   LightingDirection,
@@ -183,8 +184,4 @@ export function LightingKeyboard(props: LightingKeyboardProps) {
 
 function previewEffectClass(mode: LightingMode): string {
   return `is-${effectForMode(mode).preview}`;
-}
-
-function rgbToHex(color: RGBColor): string {
-  return `#${[color.red, color.green, color.blue].map((value) => value.toString(16).padStart(2, "0")).join("")}`;
 }

@@ -8,6 +8,7 @@ import {
   type CustomLightingBackup,
 } from "../lighting/custom";
 import { AK820_KEY_GROUPS } from "../lighting/keyboard-layout";
+import { hexToRgb } from "../lighting/color";
 import {
   parseLightingProfile,
   profileStorageKey,
@@ -423,13 +424,6 @@ function mix(start: RGBColor, end: RGBColor, amount: number): RGBColor {
   };
 }
 
-function hexToRgb(hex: string): RGBColor {
-  return {
-    red: Number.parseInt(hex.slice(1, 3), 16),
-    green: Number.parseInt(hex.slice(3, 5), 16),
-    blue: Number.parseInt(hex.slice(5, 7), 16),
-  };
-}
 function message(error: unknown): string {
   return error instanceof Error ? error.message : "Custom RGB operation failed.";
 }

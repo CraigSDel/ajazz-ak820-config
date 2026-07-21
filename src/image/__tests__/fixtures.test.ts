@@ -15,7 +15,7 @@ type Baseline = {
 };
 
 const baselines: Record<string, Baseline> = {
-  "20048-2-pikachu-hd.png": {
+  "pikachu.png": {
     sourceSha256: "2ea698124dfdc2705919f72289ef2eb075fbe6382f4f68915f3549ace3e9e69c",
     rgb565Sha256: "44f11e5c703fbd3e397c88113d2c5f80b18d19a77c961fef738239e2add6ff19",
   },
@@ -23,7 +23,7 @@ const baselines: Record<string, Baseline> = {
     sourceSha256: "37de14611c8ca6097a5cfb2fd8a76c93e31b7a97b179d3408dee9e13362f303b",
     rgb565Sha256: "3fbf5183e123cc669c4bae24e07c17e8fbc051e1f4e5e0ef5c4848f72a1656b7",
   },
-  "pica.webp": {
+  "pikachu.webp": {
     sourceSha256: "6235cf0e460d21bbaf8644650513ddf6d00016dbbfc82a1730dc022724b2c684",
     webPInfo: { animated: true, width: 500, height: 500, frameCount: 23 },
   },

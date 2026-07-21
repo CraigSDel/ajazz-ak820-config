@@ -9,6 +9,7 @@ import {
 } from "../protocol/lighting";
 import { LightingSleepTime, type LightingSleepTime as SleepTime } from "../protocol/lighting-sleep";
 import { effectForMode, LIGHTING_EFFECTS } from "../lighting/effects";
+import { hexToRgb, rgbToHex } from "../lighting/color";
 import { useCustomLightingEditor } from "./CustomLightingEditor";
 import { LightingKeyboard, type LightingKeyboardProps } from "./LightingKeyboard";
 
@@ -325,18 +326,4 @@ function LevelSelect({
 
 function directionsForMode(mode: LightingMode): readonly (readonly [LightingDirection, string])[] {
   return effectForMode(mode).directions;
-}
-
-function rgbToHex(color: LightingConfig["color"]): string {
-  return `#${[color.red, color.green, color.blue]
-    .map((value) => value.toString(16).padStart(2, "0"))
-    .join("")}`;
-}
-
-function hexToRgb(hex: string): LightingConfig["color"] {
-  return {
-    red: Number.parseInt(hex.slice(1, 3), 16),
-    green: Number.parseInt(hex.slice(3, 5), 16),
-    blue: Number.parseInt(hex.slice(5, 7), 16),
-  };
 }

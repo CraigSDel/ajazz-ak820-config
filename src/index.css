@@ -1124,7 +1124,7 @@ select {
 }
 
 .display-format-note {
-  color: #7f8993 !important;
+  color: #7f8993;
   font-size: 0.75rem;
 }
 
