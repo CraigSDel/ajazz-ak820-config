@@ -13,6 +13,7 @@ type Prepared = {
 };
 
 const STATIC_FRAME_DELAY_MS = 500;
+const MAX_SELECTION_BYTES = 50 * 1024 * 1024;
 
 export function ImagePanel() {
   const { controller, connected, activeOperation, runOperation } = useDeviceSession();
@@ -47,6 +48,13 @@ export function ImagePanel() {
     setPrepared(null);
     setProcessing(true);
     try {
+      const selectionBytes = selectedFiles.reduce((total, file) => total + file.size, 0);
+      if (selectedFiles.length > MAX_TFT_FRAMES) {
+        throw new Error(`Choose no more than ${MAX_TFT_FRAMES} files at once.`);
+      }
+      if (selectionBytes > MAX_SELECTION_BYTES) {
+        throw new Error("The selected files exceed the combined 50 MB limit.");
+      }
       const frames: Uint8Array[] = [];
       const delaysMs: number[] = [];
       const files: Prepared["files"] = [];

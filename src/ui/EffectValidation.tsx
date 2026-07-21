@@ -9,6 +9,7 @@ type Observations = Record<number, Observation>;
 // The version changes when the hardware transaction changes so old results do
 // not get mixed with tests of a corrected implementation.
 const STORAGE_KEY = "ak820-pro-effect-validation-v7";
+const MAX_NOTE_LENGTH = 500;
 const RESULT_LABELS: Record<Result, string> = {
   untested: "Untested",
   works: "Works",
@@ -23,7 +24,21 @@ function initialObservations(): Observations {
     empty[protocolId] = { result: "untested", note: "" };
   }
   try {
-    return { ...empty, ...JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") };
+    const stored: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+    if (!stored || typeof stored !== "object" || Array.isArray(stored)) return empty;
+    for (const { protocolId } of LIGHTING_EFFECTS) {
+      const candidate = (stored as Record<string, unknown>)[protocolId];
+      if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) continue;
+      const { result, note } = candidate as Record<string, unknown>;
+      if (typeof result !== "string" || !(result in RESULT_LABELS) || typeof note !== "string") {
+        continue;
+      }
+      empty[protocolId] = {
+        result: result as Result,
+        note: note.slice(0, MAX_NOTE_LENGTH),
+      };
+    }
+    return empty;
   } catch {
     return empty;
   }
@@ -120,6 +135,7 @@ export function EffectValidation({
         Note · required for Wrong effect
         <input
           value={observation.note}
+          maxLength={MAX_NOTE_LENGTH}
           placeholder="What appeared instead?"
           onChange={(event) => update({ note: event.target.value })}
         />

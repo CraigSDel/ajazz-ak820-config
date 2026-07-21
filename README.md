@@ -65,7 +65,13 @@ restoring a previous custom layout remain unavailable.
 
 This page talks to your keyboard via WebHID. Chrome grants the permission **persistently** until you revoke it at `chrome://settings/content/hid`. The page makes no network requests — image processing and HID transport happen entirely in the browser.
 
-The bundle ships with a strict meta-delivered Content-Security-Policy: no inline scripts, no third-party origins, and no form submission. GitHub Pages does not support custom response headers, so framing restrictions cannot be enforced there: browsers ignore `frame-ancestors` when it is delivered in a `<meta>` element.
+The bundle ships with a strict meta-delivered Content-Security-Policy: no
+inline scripts, third-party origins, forms, embedded frames, media, workers, or
+plugin content. Chromium also enforces Trusted Types for script injection, and
+the page sends no referrer information. GitHub Pages does not support custom
+response headers, so framing restrictions and response-header policies such as
+`Permissions-Policy` cannot be enforced there: browsers ignore
+`frame-ancestors` when it is delivered in a `<meta>` element.
 
 ## Development
 

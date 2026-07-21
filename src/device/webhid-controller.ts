@@ -16,6 +16,9 @@ import type { DeviceController } from "./types";
 
 type DevicePair = { control: HIDDevice; data: HIDDevice; command?: HIDDevice };
 
+const MAX_PENDING_INPUT_REPORTS = 32;
+const MAX_COMMAND_REPORT_LENGTH = 4096;
+
 function hasUsagePage(device: HIDDevice, usagePage: number): boolean {
   return device.collections.some((collection) => collection.usagePage === usagePage);
 }
@@ -138,20 +141,17 @@ export class WebHIDDeviceController implements DeviceController {
     this.dataDevice = data;
     this.commandDevice = command ?? null;
 
-    // Diagnostic dump — surfaces what the keyboard's HID descriptor really
-    // declares for the data interface. Helps identify the actual max output
-    // report size, the report IDs, etc. Look in DevTools Console.
-    // eslint-disable-next-line no-console
-    console.log("[WebHID] control collections:", JSON.stringify(control.collections, null, 2));
-    // eslint-disable-next-line no-console
-    console.log("[WebHID] data collections:", JSON.stringify(data.collections, null, 2));
-
     this.boundDataInputListener = (event: HIDInputReportEvent) => {
       const waiter = this.dataInputWaiters.shift();
       if (waiter) {
         waiter(event.data);
       } else {
         this.dataInputQueue.push(event.data);
+        // A faulty or hostile USB device must not be able to grow the page's
+        // memory indefinitely by flooding unsolicited input reports.
+        if (this.dataInputQueue.length > MAX_PENDING_INPUT_REPORTS) {
+          this.dataInputQueue.shift();
+        }
       }
     };
     data.addEventListener("inputreport", this.boundDataInputListener);
@@ -332,7 +332,7 @@ function commandReportLength(device: HIDDevice): number {
     ),
   );
   const length = Math.max(0, ...counts);
-  if (length <= 8) {
+  if (length <= 8 || length > MAX_COMMAND_REPORT_LENGTH) {
     throw new Error("The custom RGB interface has no usable output report.");
   }
   return length;
