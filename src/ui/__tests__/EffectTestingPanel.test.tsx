@@ -69,7 +69,7 @@ describe("EffectTestingPanel", () => {
 
     const report = view.getByLabelText("Current test report") as HTMLTextAreaElement;
     await waitFor(() =>
-      expect(report.value).toContain("Protocol effect 1 / Steady: Works — steady red"),
+      expect(report.value).toContain("Protocol effect 1 / Static: Works — steady red"),
     );
     expect(clipboardWrite).not.toHaveBeenCalled();
 
@@ -77,9 +77,42 @@ describe("EffectTestingPanel", () => {
     await waitFor(() => expect(clipboardWrite).toHaveBeenCalledWith(report.value));
 
     await waitFor(() =>
-      expect(view.getByRole("heading", { name: "Key Press — Light Up" })).toBeTruthy(),
+      expect(view.getByRole("heading", { name: "Single Key On" })).toBeTruthy(),
     );
     await waitFor(() => expect(controller.sent).toHaveLength(16));
     expect(controller.sent.at(-2)?.reportId).toBe(LightingMode.Effect2);
+  });
+
+  test("reattempts the selected RGB effect and records it in the exported result", async () => {
+    localStorage.clear();
+    const controller = new MockDeviceController();
+    await controller.connect();
+    const view = render(
+      <DeviceSessionProvider controller={controller}>
+        <EffectTestingPanel />
+      </DeviceSessionProvider>,
+    );
+
+    await waitFor(() => expect(controller.sent).toHaveLength(8));
+    const reattempt = view.getByRole("button", { name: "Reattempt RGB" }) as HTMLButtonElement;
+    await waitFor(() => expect(reattempt.disabled).toBe(false));
+    fireEvent.click(reattempt);
+
+    await waitFor(() => expect(controller.sent).toHaveLength(16));
+    const report = view.getByLabelText("Current test report") as HTMLTextAreaElement;
+    await waitFor(() =>
+      expect(report.value).toContain(
+        "Protocol effect 1 / Static: Untested — RGB reapplied 1 time",
+      ),
+    );
+
+    await waitFor(() => expect(reattempt.disabled).toBe(false));
+    fireEvent.click(reattempt);
+    await waitFor(() => expect(controller.sent).toHaveLength(24));
+    await waitFor(() =>
+      expect(report.value).toContain(
+        "Protocol effect 1 / Static: Untested — RGB reapplied 2 times",
+      ),
+    );
   });
 });

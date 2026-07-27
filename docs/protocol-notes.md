@@ -727,10 +727,18 @@ transaction:
 4. **FINISH** — command `0xF0`, byte 8 = `0x01`.
 
 In WebHID, issue a best-effort GET-feature handshake after the three `0x04`
-control packets only. Do not read after MODE_DATA: physical A/B testing showed
-that this made known-good modes go dark or retain the previous effect. The
-hidapi references read after every packet, but that behavior does not transfer
-safely to Chrome's unnumbered-report API.
+control packets. The hidapi references read after every MODE_DATA packet, but
+that behavior does not transfer globally to Chrome's unnumbered-report API.
+Wired hardware sweeps established a mode-scoped compromise: acknowledge
+MODE_DATA for modes `0x04`, `0x07`, `0x09`, `0x0B`, and `0x0D`; omit the read
+for the other modes. Without it, modes 7, 9, 11, and 13 retained the previous
+effect. Mode 4 was already read by the earlier report-ID-based implementation
+and worked in the same sweep.
+
+A second wired sweep on 2026-07-27 validated this policy: every effect from
+`0x01` through `0x13` worked, including the four modes that previously retained
+the prior state. `0x00` was reapplied but not visually graded and remains
+untested.
 
 The mode data packet uses **byte 0 as the report ID = the requested lighting
 mode value** (not `0x04`). `ReportMessage` strips that leading byte into its
@@ -766,9 +774,10 @@ single-on (`0x02`), single-off (`0x03`), glittering (`0x04`), falling
 (`0x0D`), launch (`0x0E`), ripples (`0x0F`), flowing (`0x10`), pulsating
 (`0x11`), tilt (`0x12`), and shuttle (`0x13`).
 
-For the browser transport, Off is sent as SingleOn (`0x02`) with brightness and
-speed 0, and Static is sent as Breath (`0x07`) with speed 0. Hardware comparison
-favored these normalized packets over direct report bytes `0x00` and `0x01`.
+The browser transport sends every selected mode ID unchanged, including Off
+(`0x00`) and Static (`0x01`). This matches both the OEM lighting table and the
+mode bytes in the captured AK820 Pro implementation. Off forces brightness and
+speed to zero; other modes retain their configured levels.
 
 ### Direction caveat
 

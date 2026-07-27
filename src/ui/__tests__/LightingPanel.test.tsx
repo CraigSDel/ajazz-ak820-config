@@ -59,41 +59,41 @@ describe("LightingPanel", () => {
     const view = await renderPanel();
     const preview = view.getByLabelText(/Virtual AK820 Pro lighting preview/);
 
-    selectEffect(view, "Cross-Wave");
+    selectEffect(view, "Scrolling");
 
     expect(preview.classList.contains("is-cross-wave")).toBe(true);
-    expect(preview.getAttribute("aria-label")).toContain("Cross-Wave effect");
+    expect(preview.getAttribute("aria-label")).toContain("Scrolling effect");
   });
 
-  test("keeps the opaque accent keycaps unlit during Color Bloom and Spectrum Cycle", async () => {
+  test("keeps the opaque accent keycaps unlit during Colourful and Spectrum Cycle", async () => {
     const view = await renderPanel();
     const preview = view.getByLabelText(/Virtual AK820 Pro lighting preview/);
 
-    selectEffect(view, "Color Bloom");
+    selectEffect(view, "Colourful");
     expect(preview.querySelectorAll(".is-accent-key.is-light-blocked")).toHaveLength(3);
 
     selectEffect(view, "Spectrum Cycle");
     expect(preview.querySelectorAll(".is-accent-key.is-light-blocked")).toHaveLength(3);
 
-    selectEffect(view, "Steady");
+    selectEffect(view, "Static");
     expect(preview.querySelectorAll(".is-light-blocked")).toHaveLength(0);
   });
 
   test("shows only the directions supported by the selected mode", async () => {
     const view = await renderPanel();
     expect(view.queryByLabelText("Direction")).toBeNull();
-    selectEffect(view, "Cross-Wave");
+    selectEffect(view, "Scrolling");
     expect(view.getByLabelText("Direction").textContent).toContain("Up");
     expect(view.getByLabelText("Direction").textContent).toContain("Down");
 
-    selectEffect(view, "Rolling Wave");
+    selectEffect(view, "Rolling");
     expect(view.getByLabelText("Direction").textContent).toContain("Left");
     expect(view.getByLabelText("Direction").textContent).toContain("Right");
 
-    selectEffect(view, "Rotating Wave");
+    selectEffect(view, "Rotating");
     expect(view.getByLabelText("Direction").textContent).toContain("Left");
 
-    selectEffect(view, "Steady");
+    selectEffect(view, "Static");
     expect(view.queryByLabelText("Direction")).toBeNull();
   });
 
@@ -150,7 +150,7 @@ describe("LightingPanel", () => {
 
   test("previews reactive presentation metadata on pointer input", async () => {
     const view = await renderPanel();
-    selectEffect(view, "Key Press — Ripple");
+    selectEffect(view, "Ripples");
     const preview = view.getByLabelText(/Virtual AK820 Pro lighting preview/);
     expect(preview.classList.contains("has-preview-trigger")).toBe(false);
     const key = preview.querySelector(".keyboard-key") as HTMLElement;
@@ -175,13 +175,23 @@ describe("LightingPanel", () => {
     await waitFor(() => expect(view.getByRole("status").textContent).toMatch(/Transfer failed/));
   });
 
-  test("marks changes as applied and re-enables apply after another edit", async () => {
-    const view = await renderPanel();
+  test("marks changes as applied while allowing the same effect to be reapplied", async () => {
+    const { controller, ...view } = await renderPanel();
     fireEvent.click(view.getByRole("button", { name: "Apply to keyboard" }));
     await waitFor(() => expect(view.getByText(/Lighting applied/)).toBeTruthy());
-    expect((view.getByRole("button", { name: "Applied" }) as HTMLButtonElement).disabled).toBe(
-      true,
+
+    const reapply = view.getByRole("button", {
+      name: "Reapply to keyboard",
+    }) as HTMLButtonElement;
+    const reportsPerWrite = controller.sent.length;
+    expect(reportsPerWrite).toBeGreaterThan(0);
+    expect(reapply.disabled).toBe(false);
+    fireEvent.click(reapply);
+    expect(view.getByRole("button", { name: "Applying…" })).toBeTruthy();
+    await waitFor(() =>
+      expect(view.getByRole("button", { name: "Reapply to keyboard" })).toBeTruthy(),
     );
+    expect(controller.sent).toHaveLength(reportsPerWrite * 2);
 
     fireEvent.change(view.getByLabelText("Brightness"), { target: { value: "4" } });
     expect(view.getByRole("button", { name: "Apply to keyboard" })).toBeTruthy();

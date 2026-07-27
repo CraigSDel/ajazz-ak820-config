@@ -89,4 +89,29 @@ describe("CustomLightingEditor", () => {
     await act(async () => vi.advanceTimersByTimeAsync(260));
     expect(controller.sent).toHaveLength(20);
   });
+
+  test("keeps the stop control enabled during an in-flight refresh", async () => {
+    vi.useFakeTimers();
+    const { controller, getByRole } = await renderEditor();
+    const sendFeatureReport = controller.sendFeatureReport.bind(controller);
+    let sendCount = 0;
+
+    vi.spyOn(controller, "sendFeatureReport").mockImplementation(async (report) => {
+      sendCount += 1;
+      if (sendCount === 11) await new Promise<void>(() => {});
+      await sendFeatureReport(report);
+    });
+
+    fireEvent.click(getByRole("button", { name: "Apply custom RGB" }));
+    await act(async () => Promise.resolve());
+    expect(controller.sent).toHaveLength(10);
+
+    await act(async () => {
+      vi.advanceTimersByTime(100);
+      await Promise.resolve();
+    });
+
+    const stop = getByRole("button", { name: "Stop live RGB" }) as HTMLButtonElement;
+    expect(stop.disabled).toBe(false);
+  });
 });

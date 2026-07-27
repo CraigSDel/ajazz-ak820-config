@@ -84,26 +84,18 @@ export function buildLightingDataReport(config: LightingConfig): ReportMessage {
   validateLevel("speed", config.speed);
   validateDirection(config.direction);
 
-  const effectiveMode = effectiveLightingMode(config.mode);
   const bytes = new Uint8Array(PAYLOAD_LENGTH);
   bytes[0] = config.color.red;
   bytes[1] = config.color.green;
   bytes[2] = config.color.blue;
   bytes[7] = config.rainbow ? 1 : 0;
   bytes[8] = config.mode === LightingMode.Off ? 0 : config.brightness;
-  bytes[9] =
-    config.mode === LightingMode.Off || config.mode === LightingMode.Effect1 ? 0 : config.speed;
+  bytes[9] = config.mode === LightingMode.Off ? 0 : config.speed;
   bytes[10] = config.direction;
   bytes[13] = DELIMITER_LOW;
   bytes[14] = DELIMITER_HIGH;
 
-  return { reportId: effectiveMode, bytes };
-}
-
-function effectiveLightingMode(mode: LightingMode): LightingMode {
-  if (mode === LightingMode.Off) return LightingMode.Effect2;
-  if (mode === LightingMode.Effect1) return LightingMode.Effect7;
-  return mode;
+  return { reportId: config.mode, bytes };
 }
 
 function buildLightingControlReport(command: number): ReportMessage {

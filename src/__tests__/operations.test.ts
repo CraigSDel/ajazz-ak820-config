@@ -53,9 +53,10 @@ describe("setLighting", () => {
     expect(ctrl.sent.map((report) => report.reportId)).toEqual([
       0x04, 0x04, 0x0b, 0x04, 0x04, 0x04, 0x0b, 0x04,
     ]);
+    expect(ctrl.receivedFeatureReportIds).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
   });
 
-  test("sends the complete normalized transaction twice", async () => {
+  test("sends the complete raw-mode transaction twice", async () => {
     const ctrl = new MockDeviceController();
     await ctrl.connect();
 
@@ -64,11 +65,35 @@ describe("setLighting", () => {
     expect(ctrl.sent).toHaveLength(8);
     expect(ctrl.sent.every((report) => report.kind === "feature")).toBe(true);
     expect(ctrl.sent.map((report) => report.reportId)).toEqual([
-      0x04, 0x04, 0x07, 0x04, 0x04, 0x04, 0x07, 0x04,
+      0x04, 0x04, 0x01, 0x04, 0x04, 0x04, 0x01, 0x04,
     ]);
     expect(ctrl.sent.map((report) => report.bytes[0])).toEqual([
       0x18, 0x13, 0xff, 0xf0, 0x18, 0x13, 0xff, 0xf0,
     ]);
+    expect(ctrl.receivedFeatureReportIds).toEqual([0, 0, 0, 0, 0, 0]);
+  });
+
+  test.each([
+    LightingMode.Effect4,
+    LightingMode.Effect7,
+    LightingMode.Effect9,
+    LightingMode.Effect11,
+    LightingMode.Effect13,
+  ])("acknowledges MODE_DATA for hardware-verified mode %i", async (mode) => {
+    const ctrl = new MockDeviceController();
+    await ctrl.connect();
+
+    await setLighting(ctrl, { ...LIGHTING_CONFIG, mode });
+
+    expect(ctrl.receivedFeatureReportIds).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
+  });
+
+  test("does not acknowledge MODE_DATA for modes that commit without it", async () => {
+    const ctrl = new MockDeviceController();
+    await ctrl.connect();
+
+    await setLighting(ctrl, { ...LIGHTING_CONFIG, mode: LightingMode.Effect12 });
+
     expect(ctrl.receivedFeatureReportIds).toEqual([0, 0, 0, 0, 0, 0]);
   });
 
@@ -79,7 +104,7 @@ describe("setLighting", () => {
     await setLighting(ctrl, { ...LIGHTING_CONFIG, brightness: 6, speed: 6 });
 
     expect(ctrl.sent[2].bytes[8]).toBe(5);
-    expect(ctrl.sent[2].bytes[9]).toBe(0);
+    expect(ctrl.sent[2].bytes[9]).toBe(5);
   });
 
   test("stops the transaction and exposes a transfer failure", async () => {
@@ -88,7 +113,7 @@ describe("setLighting", () => {
 
     await expect(setLighting(ctrl, LIGHTING_CONFIG)).rejects.toMatchObject({
       name: "DeviceFailure",
-      error: { kind: "transfer-failed", reportId: LightingMode.Effect7 },
+      error: { kind: "transfer-failed", reportId: LightingMode.Effect1 },
     });
     expect(ctrl.sent).toHaveLength(2);
   });

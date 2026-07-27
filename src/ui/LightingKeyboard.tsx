@@ -64,7 +64,7 @@ export function LightingKeyboard(props: LightingKeyboardProps) {
   } as CSSProperties;
   const label = perKey
     ? "Interactive AK820 Pro per-key lighting editor"
-    : `Virtual AK820 Pro lighting preview, ${effect?.displayName ?? "Steady"} effect, ${color}`;
+    : `Virtual AK820 Pro lighting preview, ${effect?.displayName ?? "Static"} effect, ${color}`;
 
   useEffect(() => {
     if (!trigger) return;

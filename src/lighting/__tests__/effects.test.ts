@@ -12,12 +12,12 @@ describe("AK820 lighting effect metadata", () => {
   test("keeps human-facing labels separate from protocol identifiers", () => {
     expect(effectForMode(LightingMode.Effect1)).toMatchObject({
       protocolId: 1,
-      displayName: "Steady",
+      displayName: "Static",
       preview: "steady",
     });
     expect(effectForMode(LightingMode.Effect15)).toMatchObject({
       protocolId: 15,
-      displayName: "Key Press — Ripple",
+      displayName: "Ripples",
       preview: "ripple",
     });
   });

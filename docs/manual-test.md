@@ -28,9 +28,9 @@ app recovers after interruption. Transparent padding should appear black.
 In Lighting, test each of these three times before running the full sweep:
 
 1. Off
-2. Steady, red, brightness 5
+2. Static, red, brightness 5
 3. Spectrum Cycle
-4. Twinkling Stars
+4. Glittering
 
 Pass: every canary works three consecutive times. Stop here if one fails; a
 full sweep would add noise rather than isolate the transport problem.
@@ -48,16 +48,19 @@ full sweep would add noise rather than isolate the transport problem.
    then record Works, Wrong effect, or No lighting. Use the note to describe the
    observed effect when the name or preview is wrong. An explicit application error is
    shown on screen and should be resolved before recording a physical result.
-5. Each result copies the full report to the clipboard and automatically applies
-   the next untested effect. Continue until all 20 are recorded.
+5. If the effect retains the previous state or needs another application, click
+   **Reattempt RGB**. Each click reapplies the selected mode and adds its
+   reapplication count to the saved/exported result.
+6. Saving a result automatically applies the next untested effect. Continue
+   until all 20 are recorded, then copy the full report.
 
 Pass: every protocol effect ID has a physical result and enough detail to correct
 its presentation metadata. An accepted command alone is not a pass.
 
 ## 5. Direction
 
-1. Apply Cross-Wave with Up, then Down.
-2. Apply Rolling Wave with Left, then Right.
+1. Apply Scrolling with Up, then Down.
+2. Apply Rolling with Left, then Right.
 
 Pass: movement matches each label. Record reversed Up/Down values before
 changing the mapping because references disagree.

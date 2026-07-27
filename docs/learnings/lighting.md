@@ -23,12 +23,26 @@ transaction without committing it; manually clicking Apply twice made the
 effect work. The automatic repeat makes that workaround deterministic.
 
 Perform a best-effort feature acknowledgement after START, MODE_PREAMBLE, and
-FINISH, but not MODE_DATA. Hardware A/B testing showed that a WebHID read after
-MODE_DATA made modes 4–6 go dark and left modes 16–17 on the previous effect.
+FINISH. MODE_DATA needs a firmware-specific policy: the capture-derived hidapi
+implementations acknowledge every mode packet, but WebHID hardware sweeps show
+that doing so globally can prevent other effects from committing. A full wired
+sweep found that modes 7, 9, 11, and 13 retained the previous effect without the
+read; mode 4 was already acknowledged because its numeric ID matched the control
+report ID. The WebHID path therefore acknowledges MODE_DATA only for modes 4, 7,
+9, 11, and 13.
+
+The corrected transaction was physically swept on 2026-07-27. Effects 1–19 all
+worked. Modes 7, 9, 11, and 13, which had retained the previous effect without
+their MODE_DATA read, passed with the scoped handshake. Modes 4, 8, and 13 were
+also explicitly reapplied during the run and continued to work; mode 13 passed
+after two reapplications. Off was reapplied once but was not assigned a visual
+result, so it remains unverified rather than failed.
+
 Preset brightness and speed are levels 1–5. The frontend selection `Off` is
-transmitted with report ID 2 and both levels 0; frontend effect 1 is transmitted
-with report ID 7 and speed 0. These are wire encodings, not claims that those
-report IDs have the catalogue meanings previously assigned to them.
+transmitted with its raw report ID 0 and both levels 0. Effects 1–19 are also
+transmitted with their raw selected report IDs. This matches the captured
+AK820 Pro mode packet and the OEM lighting table; aliases to other animations
+must not be substituted.
 
 The optional `0xff67` command interface is not used for presets. Hardware tests
 showed that its generic SET-effect command could acknowledge a write while most
@@ -46,24 +60,23 @@ separate:
 - A renamed or corrected animation must never change its `protocolId`.
 
 The AK820 Pro manual confirms 20 cyclic lighting effects and controls for
-colour, direction, brightness, and speed, but it does not publish a per-ID name
-mapping. AJAZZ product material likewise confirms dynamic/customizable effects
-without mapping names to IDs. Consequently, the current names below are a
-provisional supplementary catalogue interpretation. Physical observations on
-USB `0x0c45:0x8009` remain authoritative.
+colour, direction, brightness, and speed. The current OEM web-driver table
+maps effects 1–19 to the same raw IDs and capabilities as the captured
+implementations. Physical observations on USB `0x0c45:0x8009` remain
+authoritative where sources disagree, notably direction encoding.
 
 | Protocol selection | Provisional frontend interpretation |
 |---|---|
 | 0 | Off |
-| 1 | Steady |
-| 2–3 | Key-reactive light/fade |
-| 4–5 | Twinkle and snow |
-| 6 | Fixed-palette Color Bloom |
-| 7 | Breathing |
+| 1 | Static |
+| 2–3 | Single Key On / Single Key Off |
+| 4–5 | Glittering / Falling |
+| 6 | Fixed-palette Colourful |
+| 7 | Breath |
 | 8 | Fixed-palette Spectrum Cycle |
-| 9–12 | Fountain and wave effects |
-| 13–15 | Key-reactive burst/trail/ripple |
-| 16–19 | Flow, layered wave, rain, and shuttle |
+| 9–12 | Outward, Scrolling, Rolling, and Rotating |
+| 13–15 | Key-reactive Explode, Launch, and Ripples |
+| 16–19 | Flowing, Pulsating, Tilt, and Shuttle |
 | 128 | Experimental static per-key RGB |
 
 Effects 2, 3, and 13–15 are provisionally reactive. Effects 6 and 8 are
@@ -102,14 +115,16 @@ validation lives in the separate Testing workspace, which can be hidden with
 The virtual keyboard is an approximate rendering selected by each effect's
 presentation metadata; it is not a protocol simulation. The Testing workspace stores
 manual observations locally, applies the next untested effect automatically,
-and exports a text report. Changing the preset transport increments the storage
-version so results from incompatible implementations are not mixed.
+can reapply the selected effect, and exports a text report. Reapplication counts
+are persisted per effect and included in the report. Changing the preset
+transport increments the storage version so results from incompatible
+implementations are not mixed.
 
 ## Lessons retained
 
 - A successful HID acknowledgement does not prove visible lighting.
-- Do not read after MODE_DATA in WebHID; hidapi reference behavior did not
-  transfer safely to the browser transport.
+- Use the hardware-verified, mode-scoped MODE_DATA acknowledgement set in
+  WebHID; neither acknowledging every mode nor acknowledging none is reliable.
 - Keep preset and experimental custom-RGB transports separate.
 - Do not expose level 6 for presets; the hardware feature packet supports 0–5.
 - Keep protocol identity neutral; human names and previews are firmware-specific
@@ -118,8 +133,10 @@ version so results from incompatible implementations are not mixed.
 
 ## Remaining hardware checks
 
-- Record the visible behavior of all 19 working effect IDs and replace every
-  provisional name, preview, and capability that differs on this firmware.
+- Record a visual result for Off; effects 1–19 passed the corrected transaction
+  sweep on 2026-07-27.
+- Record detailed motion and palette observations where the approximate preview
+  still needs confirmation.
 - Confirm Up/Down direction and mode 19's visible behavior.
 - Confirm persistence across reconnect and power cycle.
 - Confirm sleep timing and wake behavior.

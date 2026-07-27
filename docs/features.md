@@ -12,19 +12,20 @@ Chromium browser. It remains local-only and communicates through WebHID.
 - Twenty preset lighting modes with color, palette, brightness, speed, and
   mode-aware direction controls.
 - AK820 Pro-specific four-report preset transaction, repeated for reliable
-  firmware commit, with Off/Steady
-  normalization and byte-level tests.
+  firmware commit, with raw OEM mode IDs and byte-level tests.
 - Lighting sleep timeout.
 - Approximate interactive keyboard preview.
 - Experimental write-only live per-key RGB editor with paint, fill, clear,
   start, and stop.
 - Dedicated hardware Testing workspace with persistent results and report
-  export. Set `VITE_SHOW_HARDWARE_TESTING=false` to hide it.
+  export, including logged per-effect RGB reapplications. Set
+  `VITE_SHOW_HARDWARE_TESTING=false` to hide it.
 - Responsive and keyboard-accessible UI.
 
 ## Hardware validation still required
 
-- Re-run all 20 presets using the corrected feature-report transport.
+- Record Off. Effects 1–19 passed the corrected feature-report transaction on
+  the wired target on 2026-07-27.
 - Confirm Up/Down direction, persistence, sleep timing, and wake behavior.
 - Verify static and animated TFT persistence on the target keyboard.
 - Verify the captured per-key RGB mapping on the ANSI layout.

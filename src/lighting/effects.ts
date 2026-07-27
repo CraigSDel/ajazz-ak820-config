@@ -51,15 +51,15 @@ const VERTICAL = [
 ] as const;
 
 /**
- * The protocol IDs are verified on the wired 0x0c45:0x8009 keyboard. Names,
- * capabilities, and previews are provisional catalogue interpretations until
- * each ID has an observation from that physical firmware.
+ * Raw IDs, names, and control capabilities match the current OEM lighting
+ * table and the AK820 Pro capture-backed implementations. Preview artwork is
+ * an approximate presentation of those firmware effects.
  */
 export const LIGHTING_EFFECTS: readonly LightingEffect[] = [
   effect(LightingMode.Off, "Off", "Turn all key lighting off.", "off", false, false, NONE),
   effect(
     LightingMode.Effect1,
-    "Steady",
+    "Static",
     "A constant whole-keyboard color.",
     "steady",
     true,
@@ -68,7 +68,7 @@ export const LIGHTING_EFFECTS: readonly LightingEffect[] = [
   ),
   effect(
     LightingMode.Effect2,
-    "Key Press — Light Up",
+    "Single Key On",
     "Pressed keys light individually.",
     "reactive-on",
     true,
@@ -78,8 +78,8 @@ export const LIGHTING_EFFECTS: readonly LightingEffect[] = [
   ),
   effect(
     LightingMode.Effect3,
-    "Key Press — Fade Out",
-    "Pressed keys fade from the selected color.",
+    "Single Key Off",
+    "Pressed keys turn off individually.",
     "reactive-off",
     true,
     true,
@@ -88,8 +88,8 @@ export const LIGHTING_EFFECTS: readonly LightingEffect[] = [
   ),
   effect(
     LightingMode.Effect4,
-    "Twinkling Stars",
-    "Random keys sparkle across the board.",
+    "Glittering",
+    "Random keys glitter across the board.",
     "twinkle",
     true,
     true,
@@ -97,7 +97,7 @@ export const LIGHTING_EFFECTS: readonly LightingEffect[] = [
   ),
   effect(
     LightingMode.Effect5,
-    "Falling Snow",
+    "Falling",
     "Points of light fall down the keyboard.",
     "snow",
     true,
@@ -106,7 +106,7 @@ export const LIGHTING_EFFECTS: readonly LightingEffect[] = [
   ),
   effect(
     LightingMode.Effect6,
-    "Color Bloom",
+    "Colourful",
     "A fixed multicolor floral pattern.",
     "bloom",
     false,
@@ -115,7 +115,7 @@ export const LIGHTING_EFFECTS: readonly LightingEffect[] = [
   ),
   effect(
     LightingMode.Effect7,
-    "Breathing",
+    "Breath",
     "The whole keyboard fades in and out.",
     "breath",
     true,
@@ -133,8 +133,8 @@ export const LIGHTING_EFFECTS: readonly LightingEffect[] = [
   ),
   effect(
     LightingMode.Effect9,
-    "Color Fountain",
-    "Color rises and spreads outward from the center.",
+    "Outward",
+    "Color spreads outward from the center.",
     "fountain",
     true,
     true,
@@ -142,7 +142,7 @@ export const LIGHTING_EFFECTS: readonly LightingEffect[] = [
   ),
   effect(
     LightingMode.Effect10,
-    "Cross-Wave",
+    "Scrolling",
     "Bands travel vertically across the keyboard.",
     "cross-wave",
     true,
@@ -151,7 +151,7 @@ export const LIGHTING_EFFECTS: readonly LightingEffect[] = [
   ),
   effect(
     LightingMode.Effect11,
-    "Rolling Wave",
+    "Rolling",
     "A horizontal wave rolls across the keys.",
     "rolling-wave",
     true,
@@ -160,7 +160,7 @@ export const LIGHTING_EFFECTS: readonly LightingEffect[] = [
   ),
   effect(
     LightingMode.Effect12,
-    "Rotating Wave",
+    "Rotating",
     "A band rotates around the keyboard.",
     "rotating-wave",
     true,
@@ -169,7 +169,7 @@ export const LIGHTING_EFFECTS: readonly LightingEffect[] = [
   ),
   effect(
     LightingMode.Effect13,
-    "Key Press — Burst",
+    "Explode",
     "Pressed keys trigger an immediate burst.",
     "burst",
     true,
@@ -179,7 +179,7 @@ export const LIGHTING_EFFECTS: readonly LightingEffect[] = [
   ),
   effect(
     LightingMode.Effect14,
-    "Key Press — Dual Trail",
+    "Launch",
     "Pressed keys launch light in two directions.",
     "dual-trail",
     true,
@@ -189,7 +189,7 @@ export const LIGHTING_EFFECTS: readonly LightingEffect[] = [
   ),
   effect(
     LightingMode.Effect15,
-    "Key Press — Ripple",
+    "Ripples",
     "Pressed keys emit an expanding ripple.",
     "ripple",
     true,
@@ -199,7 +199,7 @@ export const LIGHTING_EFFECTS: readonly LightingEffect[] = [
   ),
   effect(
     LightingMode.Effect16,
-    "Continuous Flow",
+    "Flowing",
     "A continuous horizontal stream crosses the board.",
     "flow",
     true,
@@ -208,7 +208,7 @@ export const LIGHTING_EFFECTS: readonly LightingEffect[] = [
   ),
   effect(
     LightingMode.Effect17,
-    "Layered Wave",
+    "Pulsating",
     "Overlapping waves rise and fall across the keys.",
     "layered-wave",
     true,
@@ -217,7 +217,7 @@ export const LIGHTING_EFFECTS: readonly LightingEffect[] = [
   ),
   effect(
     LightingMode.Effect18,
-    "Diagonal Rain",
+    "Tilt",
     "Diagonal streaks move across the keyboard.",
     "diagonal-rain",
     true,

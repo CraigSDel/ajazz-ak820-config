@@ -52,9 +52,8 @@ export function LightingPanel() {
   };
 
   const applyConfig = async (nextConfig: LightingConfig) => {
-    // The app-level operation banner owns in-progress announcements. Keep this
-    // local live region for the outcome so the same update is not announced
-    // twice.
+    // The button exposes the in-progress state. Keep the live region for the
+    // outcome so the same update is not announced twice.
     setStatus(null);
     try {
       await runOperation("lighting", (operationController) =>
@@ -224,11 +223,15 @@ export function LightingPanel() {
               <button
                 type="button"
                 className="primary-action"
-                disabled={!connected || busy || !hasChanges}
+                disabled={!connected || busy}
                 aria-busy={applyingLighting}
                 onClick={applyLighting}
               >
-                {applyingLighting ? "Applying…" : hasChanges ? "Apply to keyboard" : "Applied"}
+                {applyingLighting
+                  ? "Applying…"
+                  : hasChanges
+                    ? "Apply to keyboard"
+                    : "Reapply to keyboard"}
               </button>
             </div>
             {status && (

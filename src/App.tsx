@@ -5,7 +5,6 @@ import { ConnectPanel } from "./ui/ConnectPanel";
 import { TimeSyncPanel } from "./ui/TimeSyncPanel";
 import { ImagePanel } from "./ui/ImagePanel";
 import { LightingPanel } from "./ui/LightingPanel";
-import { OperationStatus } from "./ui/OperationStatus";
 import { WebHIDDeviceController } from "./device/webhid-controller";
 import { EffectTestingPanel } from "./ui/EffectTestingPanel";
 
@@ -65,8 +64,6 @@ export function Configurator({ showTesting = DEFAULT_SHOW_TESTING }: { showTesti
           {healthText(health)}
         </button>
       </header>
-
-      <OperationStatus />
 
       <div className="app-shell">
         <nav className="workspace-nav" aria-label="Configurator sections">

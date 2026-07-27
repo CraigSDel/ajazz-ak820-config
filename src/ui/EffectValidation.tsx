@@ -3,12 +3,12 @@ import { effectForMode, LIGHTING_EFFECTS } from "../lighting/effects";
 import type { LightingMode } from "../protocol/lighting";
 
 type Result = "untested" | "works" | "wrong-effect" | "no-light" | "connection-error";
-type Observation = { result: Result; note: string };
+type Observation = { result: Result; note: string; reattempts: number };
 type Observations = Record<number, Observation>;
 
 // The version changes when the hardware transaction changes so old results do
 // not get mixed with tests of a corrected implementation.
-const STORAGE_KEY = "ak820-pro-effect-validation-v7";
+const STORAGE_KEY = "ak820-pro-effect-validation-v8";
 const MAX_NOTE_LENGTH = 500;
 const RESULT_LABELS: Record<Result, string> = {
   untested: "Untested",
@@ -21,7 +21,7 @@ const RESULT_LABELS: Record<Result, string> = {
 function initialObservations(): Observations {
   const empty: Observations = {};
   for (const { protocolId } of LIGHTING_EFFECTS) {
-    empty[protocolId] = { result: "untested", note: "" };
+    empty[protocolId] = { result: "untested", note: "", reattempts: 0 };
   }
   try {
     const stored: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
@@ -29,13 +29,17 @@ function initialObservations(): Observations {
     for (const { protocolId } of LIGHTING_EFFECTS) {
       const candidate = (stored as Record<string, unknown>)[protocolId];
       if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) continue;
-      const { result, note } = candidate as Record<string, unknown>;
+      const { result, note, reattempts } = candidate as Record<string, unknown>;
       if (typeof result !== "string" || !(result in RESULT_LABELS) || typeof note !== "string") {
         continue;
       }
       empty[protocolId] = {
         result: result as Result,
         note: note.slice(0, MAX_NOTE_LENGTH),
+        reattempts:
+          typeof reattempts === "number" && Number.isSafeInteger(reattempts) && reattempts >= 0
+            ? reattempts
+            : 0,
       };
     }
     return empty;
@@ -104,6 +108,19 @@ export function EffectValidation({
     if (canApply) await next();
   };
 
+  const reattempt = async () => {
+    setCopyStatus(null);
+    setReportGeneratedAt(new Date().toISOString());
+    setObservations((current) => ({
+      ...current,
+      [mode]: {
+        ...current[mode],
+        reattempts: current[mode].reattempts + 1,
+      },
+    }));
+    await onSelectAndApply(mode);
+  };
+
   const copyReport = async () => {
     try {
       await navigator.clipboard.writeText(report);
@@ -137,6 +154,9 @@ export function EffectValidation({
       <p className="validation-instruction">
         Mode {mode} · observe the keyboard, then record what it shows.
       </p>
+      <button type="button" disabled={!canApply} onClick={reattempt}>
+        Reattempt RGB
+      </button>
       {applyStatus && (
         <p className="lighting-feedback" role="status" aria-live="polite">
           {applyStatus}
@@ -203,14 +223,21 @@ export function buildEffectReport(
     "",
     `Generated: ${generatedAt}`,
     "Connection: wired USB",
-    "Transaction: AK820 Pro START, MODE_PREAMBLE, MODE_DATA, FINISH feature reports ×2",
+    "Transaction: AK820 Pro START, MODE_PREAMBLE, MODE_DATA, FINISH feature reports ×2; mode-scoped MODE_DATA handshake",
     "",
   ];
   for (const effect of LIGHTING_EFFECTS) {
     const observation = observations[effect.protocolId];
-    const note = observation.note.trim() ? ` — ${observation.note.trim()}` : "";
+    const details: string[] = [];
+    if (observation.note.trim()) details.push(observation.note.trim());
+    if (observation.reattempts > 0) {
+      details.push(
+        `RGB reapplied ${observation.reattempts} ${observation.reattempts === 1 ? "time" : "times"}`,
+      );
+    }
+    const suffix = details.length > 0 ? ` — ${details.join("; ")}` : "";
     lines.push(
-      `- Protocol effect ${effect.protocolId} / ${effect.displayName}: ${RESULT_LABELS[observation.result]}${note}`,
+      `- Protocol effect ${effect.protocolId} / ${effect.displayName}: ${RESULT_LABELS[observation.result]}${suffix}`,
     );
   }
   return lines.join("\n");

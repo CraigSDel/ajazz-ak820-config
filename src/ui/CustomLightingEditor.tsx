@@ -23,6 +23,9 @@ export function useCustomLightingEditor(active = true) {
   colorsRef.current = colors;
   const available = connected && canUseCustomLighting(controller);
   const busy = activeOperation !== null;
+  // Stopping only cancels the local refresh loop, so it remains safe while
+  // the current custom RGB transfer holds the shared device-operation lock.
+  const actionDisabled = !streaming && (!available || busy);
 
   useEffect(() => {
     if (!active) setStreaming(false);
@@ -141,7 +144,7 @@ export function useCustomLightingEditor(active = true) {
         <button
           type="button"
           className="primary-action"
-          disabled={!available || busy}
+          disabled={actionDisabled}
           onClick={streaming ? () => setStreaming(false) : applyToKeyboard}
         >
           {streaming ? "Stop live RGB" : "Apply custom RGB"}

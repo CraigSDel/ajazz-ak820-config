@@ -455,19 +455,6 @@ button:disabled {
   color: #eaeaea;
 }
 
-.operation-status {
-  position: sticky;
-  top: 0.75rem;
-  z-index: 1;
-  padding: 0.75rem 1rem;
-  border: 1px solid #52677a;
-  border-radius: var(--radius-sm);
-  background: #18222cee;
-  box-shadow: 0 10px 28px #0006;
-  backdrop-filter: blur(14px);
-  color: #cde4f7;
-}
-
 .device-health {
   display: flex;
   align-items: flex-start;

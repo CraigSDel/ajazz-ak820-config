@@ -32,6 +32,10 @@ const POST_SAVE_DELAY_MS = 100;
 const LIGHTING_RETRY_DELAY_MS = 150;
 const CHUNK_ACK_TIMEOUT_MS = 300;
 const IMAGE_ACK_PREFIX = [0x01, 0x5a, 0x02, 0x00] as const;
+// Capture-derived implementations acknowledge every MODE_DATA report. Physical
+// WebHID sweeps show that this firmware needs that handshake only for this
+// subset; reading after other mode reports can prevent them from committing.
+const MODE_DATA_HANDSHAKE_MODES: ReadonlySet<number> = new Set([0x04, 0x07, 0x09, 0x0b, 0x0d]);
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -107,12 +111,13 @@ export async function setLighting(ctrl: DeviceController, config: LightingConfig
   // the reliable equivalent of the previously required second Apply click.
   for (let attempt = 0; attempt < 2; attempt++) {
     if (attempt > 0) await sleep(LIGHTING_RETRY_DELAY_MS);
-    for (const report of reports) {
+    for (const [reportIndex, report] of reports.entries()) {
       await ctrl.sendFeatureReport(report);
-      // Hardware A/B testing showed that a WebHID GET_FEATURE after MODE_DATA
-      // makes working modes go dark or leaves the previous effect active.
-      // Handshake only the 0x04 control reports.
-      if (report.reportId === 0x04) await ctrl.receiveFeatureReport(0);
+      const isModeData = reportIndex === 2;
+      const needsHandshake = isModeData
+        ? MODE_DATA_HANDSHAKE_MODES.has(featureConfig.mode)
+        : report.reportId === 0x04;
+      if (needsHandshake) await ctrl.receiveFeatureReport(0);
       await sleep(INTER_PACKET_DELAY_MS);
     }
     await sleep(POST_SAVE_DELAY_MS);
