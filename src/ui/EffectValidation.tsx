@@ -98,15 +98,19 @@ export function EffectValidation({
       ...observations,
       [mode]: { ...observations[mode], result },
     };
+    setCopyStatus(null);
     setReportGeneratedAt(generatedAt);
     setObservations(nextObservations);
-    try {
-      await navigator.clipboard.writeText(buildEffectReport(nextObservations, generatedAt));
-      setCopyStatus("Result saved and report copied to clipboard.");
-    } catch {
-      setCopyStatus("Result saved. Clipboard unavailable; copy the report below.");
-    }
     if (canApply) await next();
+  };
+
+  const copyReport = async () => {
+    try {
+      await navigator.clipboard.writeText(report);
+      setCopyStatus("Report copied to clipboard.");
+    } catch {
+      setCopyStatus("Clipboard unavailable. Select and copy the report below.");
+    }
   };
 
   return (
@@ -148,7 +152,7 @@ export function EffectValidation({
         />
       </label>
       <fieldset className="validation-results">
-        <legend>Save, copy report and continue</legend>
+        <legend>Save result and continue</legend>
         {(["works", "wrong-effect", "no-light"] as const).map((result) => (
           <button
             type="button"
@@ -172,8 +176,17 @@ export function EffectValidation({
       )}
       <details className="validation-report" open={remaining === 0}>
         <summary>Report · saved in this browser</summary>
+        <div className="validation-report-actions">
+          <button type="button" onClick={copyReport} aria-label="Copy report to clipboard">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 5.5h8.5A1.5 1.5 0 0 1 19 7v11.5a1.5 1.5 0 0 1-1.5 1.5H9a1.5 1.5 0 0 1-1.5-1.5V7A1.5 1.5 0 0 1 9 5.5Z" />
+              <path d="M15.5 5.5V4A1.5 1.5 0 0 0 14 2.5H5.5A1.5 1.5 0 0 0 4 4v11.5A1.5 1.5 0 0 0 5.5 17h2" />
+            </svg>
+            Copy report
+          </button>
+        </div>
         <label>
-          Report copied after every result
+          Current test report
           <textarea className="effect-report" readOnly value={report} rows={12} />
         </label>
       </details>

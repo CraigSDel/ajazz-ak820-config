@@ -737,6 +737,27 @@ fieldset {
   color: var(--muted);
 }
 
+.validation-report-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0.8rem 0;
+}
+
+.validation-report-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.validation-report-actions svg {
+  width: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
 @media (max-width: 620px) {
   .validation-results {
     grid-template-columns: 1fr;

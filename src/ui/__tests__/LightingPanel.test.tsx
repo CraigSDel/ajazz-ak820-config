@@ -160,10 +160,10 @@ describe("LightingPanel", () => {
   });
 
   test("submits lighting through the device transaction", async () => {
-    const { controller, getByRole, getByText } = await renderPanel();
+    const { controller, getByRole, getByText, queryByRole } = await renderPanel();
     fireEvent.click(getByRole("button", { name: "Apply to keyboard" }));
     expect((getByRole("button", { name: "Applying…" }) as HTMLButtonElement).disabled).toBe(true);
-    expect(getByRole("status").textContent).toBe("Applying lighting…");
+    expect(queryByRole("status")).toBeNull();
     await waitFor(() => expect(controller.sent).toHaveLength(4));
     await waitFor(() => expect(getByText(/Lighting applied/)).toBeTruthy());
   });

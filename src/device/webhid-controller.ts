@@ -12,6 +12,10 @@ type DevicePair = { control: HIDDevice; data: HIDDevice };
 
 const MAX_PENDING_INPUT_REPORTS = 32;
 const IMAGE_ACK_PREFIX = [0x01, 0x5a, 0x02, 0x00] as const;
+// Feature reads are only best-effort handshakes. Some WebHID/firmware
+// combinations never settle receiveFeatureReport(), which must not leave the
+// global operation lock and UI stuck indefinitely.
+const FEATURE_REPORT_TIMEOUT_MS = 300;
 
 function isImageAcknowledgement(data: DataView): boolean {
   if (data.byteLength < IMAGE_ACK_PREFIX.length) return false;
@@ -248,12 +252,20 @@ export class WebHIDDeviceController implements DeviceController {
     if (!device?.opened) {
       throw new DeviceFailure({ kind: "device-disconnected" });
     }
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
-      return await device.receiveFeatureReport(reportId);
+      return await Promise.race([
+        device.receiveFeatureReport(reportId).catch(() => null),
+        new Promise<null>((resolve) => {
+          timeout = setTimeout(() => resolve(null), FEATURE_REPORT_TIMEOUT_MS);
+        }),
+      ]);
     } catch {
       // Handshake reads are non-fatal — reference implementations ignore
       // errors and continue. Treat any failure here as "no data."
       return null;
+    } finally {
+      if (timeout !== undefined) clearTimeout(timeout);
     }
   }
 

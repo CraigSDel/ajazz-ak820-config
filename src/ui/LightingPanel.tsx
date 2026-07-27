@@ -52,7 +52,10 @@ export function LightingPanel() {
   };
 
   const applyConfig = async (nextConfig: LightingConfig) => {
-    setStatus("Applying lighting…");
+    // The app-level operation banner owns in-progress announcements. Keep this
+    // local live region for the outcome so the same update is not announced
+    // twice.
+    setStatus(null);
     try {
       await runOperation("lighting", (operationController) =>
         setLighting(operationController, nextConfig),

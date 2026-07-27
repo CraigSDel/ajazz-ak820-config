@@ -67,10 +67,13 @@ describe("EffectTestingPanel", () => {
     await waitFor(() => expect(works.disabled).toBe(false));
     fireEvent.click(works);
 
-    const report = view.getByLabelText(/Report copied after every result/) as HTMLTextAreaElement;
+    const report = view.getByLabelText("Current test report") as HTMLTextAreaElement;
     await waitFor(() =>
       expect(report.value).toContain("Protocol effect 1 / Steady: Works — steady red"),
     );
+    expect(clipboardWrite).not.toHaveBeenCalled();
+
+    fireEvent.click(view.getByRole("button", { name: "Copy report to clipboard" }));
     await waitFor(() => expect(clipboardWrite).toHaveBeenCalledWith(report.value));
 
     await waitFor(() =>
