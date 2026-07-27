@@ -61,7 +61,7 @@ button {
     transform 140ms ease;
 }
 
-button:hover:not(:disabled) {
+button:hover:not(:disabled):not(.keyboard-key) {
   border-color: #596572;
   background: linear-gradient(145deg, #30363d, #22272d);
   box-shadow: 0 6px 16px #0004;
@@ -1504,16 +1504,9 @@ select {
 
 .keyboard-preview .keyboard-key:hover:not(:disabled) {
   transform: none;
-}
-
-.keyboard-preview:not(.is-per-key) .keyboard-key:hover:not(:disabled) {
-  border-color: #090a0b;
-  filter: none;
-}
-
-.keyboard-preview.is-per-key .keyboard-key:hover:not(:disabled) {
-  border-color: #6d747d;
-  background: #30353b;
+  border-color: #8e99a5;
+  outline: 1px solid #8e99a5;
+  outline-offset: 1px;
 }
 
 .keyboard-preview.is-per-key {
