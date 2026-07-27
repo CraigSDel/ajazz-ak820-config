@@ -31,6 +31,7 @@ const INTER_PACKET_DELAY_MS = 50;
 const POST_SAVE_DELAY_MS = 100;
 const LIGHTING_RETRY_DELAY_MS = 150;
 const CHUNK_ACK_TIMEOUT_MS = 300;
+const IMAGE_ACK_PREFIX = [0x01, 0x5a, 0x02, 0x00] as const;
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -39,6 +40,7 @@ async function sendImageChunks(
   chunks: readonly Uint8Array[],
   onProgress: ProgressCallback,
 ): Promise<void> {
+  ctrl.clearPendingDataInputReports();
   for (let i = 0; i < chunks.length; i++) {
     await ctrl.sendReport({ reportId: 0, bytes: chunks[i] });
     const acknowledgement = await ctrl.waitForDataInputReport(CHUNK_ACK_TIMEOUT_MS);
@@ -47,6 +49,15 @@ async function sendImageChunks(
         kind: "ack-timeout",
         chunkIndex: i,
         totalChunks: chunks.length,
+      });
+    }
+    if (
+      acknowledgement.byteLength < IMAGE_ACK_PREFIX.length ||
+      !IMAGE_ACK_PREFIX.every((byte, index) => acknowledgement.getUint8(index) === byte)
+    ) {
+      throw new DeviceFailure({
+        kind: "validation",
+        message: `Invalid image acknowledgement for chunk ${i + 1} of ${chunks.length}`,
       });
     }
     onProgress((i + 1) / chunks.length);

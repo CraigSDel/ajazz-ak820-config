@@ -1,37 +1,24 @@
 import type { ReportMessage } from "../protocol/types";
-import {
-  GET_LED_EFFECT_COMMAND,
-  SET_LED_EFFECT_COMMAND,
-  type CommandRequest,
-} from "../protocol/custom-lighting";
 import { DeviceFailure } from "./errors";
 import type { DeviceController, SentReport } from "./types";
 
 export class MockDeviceController implements DeviceController {
   public sent: SentReport[] = [];
   public receivedFeatureReportIds: number[] = [];
-  public commandRequests: CommandRequest[] = [];
   private connected = false;
   private disconnectHandlers = new Set<() => void>();
   private sendCount = 0;
-  private ledEffectData = new Uint8Array(16);
   private readonly options: {
     failSendAt?: number;
     dataAckResponds?: boolean;
-    commandTransport?: boolean;
-    commandResponse?: Uint8Array;
     productId?: number;
-    ignoreLedEffectWrites?: boolean;
   };
 
   constructor(
     options: {
       failSendAt?: number;
       dataAckResponds?: boolean;
-      commandTransport?: boolean;
-      commandResponse?: Uint8Array;
       productId?: number;
-      ignoreLedEffectWrites?: boolean;
     } = {},
   ) {
     this.options = options;
@@ -86,36 +73,12 @@ export class MockDeviceController implements DeviceController {
     if (!this.connected) {
       throw new DeviceFailure({ kind: "device-disconnected" });
     }
-    return this.options.dataAckResponds === false ? null : new DataView(new ArrayBuffer(0));
+    return this.options.dataAckResponds === false
+      ? null
+      : new DataView(Uint8Array.from([0x01, 0x5a, 0x02, 0x00]).buffer);
   }
 
-  supportsCommandTransport(): boolean {
-    return this.connected && this.options.commandTransport === true;
-  }
-
-  async exchangeCommand(request: CommandRequest): Promise<Uint8Array> {
-    if (!this.connected) throw new DeviceFailure({ kind: "device-disconnected" });
-    if (!this.supportsCommandTransport()) {
-      throw new DeviceFailure({ kind: "validation", message: "Command transport unavailable" });
-    }
-    this.commandRequests.push({
-      ...request,
-      data: request.data ? new Uint8Array(request.data) : undefined,
-    });
-    if (
-      request.command === SET_LED_EFFECT_COMMAND &&
-      request.data &&
-      !this.options.ignoreLedEffectWrites
-    ) {
-      this.ledEffectData = new Uint8Array(request.data);
-    }
-    if (request.command === GET_LED_EFFECT_COMMAND) {
-      return new Uint8Array(this.ledEffectData);
-    }
-    return this.options.commandResponse
-      ? new Uint8Array(this.options.commandResponse)
-      : new Uint8Array(request.contentSize);
-  }
+  clearPendingDataInputReports(): void {}
 
   onDisconnect(handler: () => void): () => void {
     this.disconnectHandlers.add(handler);

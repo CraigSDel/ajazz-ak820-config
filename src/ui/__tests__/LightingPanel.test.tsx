@@ -65,6 +65,20 @@ describe("LightingPanel", () => {
     expect(preview.getAttribute("aria-label")).toContain("Cross-Wave effect");
   });
 
+  test("keeps the opaque accent keycaps unlit during Color Bloom and Spectrum Cycle", async () => {
+    const view = await renderPanel();
+    const preview = view.getByLabelText(/Virtual AK820 Pro lighting preview/);
+
+    selectEffect(view, "Color Bloom");
+    expect(preview.querySelectorAll(".is-accent-key.is-light-blocked")).toHaveLength(3);
+
+    selectEffect(view, "Spectrum Cycle");
+    expect(preview.querySelectorAll(".is-accent-key.is-light-blocked")).toHaveLength(3);
+
+    selectEffect(view, "Steady");
+    expect(preview.querySelectorAll(".is-light-blocked")).toHaveLength(0);
+  });
+
   test("shows only the directions supported by the selected mode", async () => {
     const view = await renderPanel();
     expect(view.queryByLabelText("Direction")).toBeNull();

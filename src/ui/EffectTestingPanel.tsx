@@ -7,7 +7,7 @@ import type { LightingConfig, LightingMode } from "../protocol/lighting";
 import { EffectValidation } from "./EffectValidation";
 
 export function EffectTestingPanel() {
-  const { controller, connected, activeOperation, runOperation } = useDeviceSession();
+  const { connected, activeOperation, runOperation } = useDeviceSession();
   const [config, setConfig] = useState(DEFAULT_LIGHTING_CONFIG);
   const [status, setStatus] = useState<string | null>(null);
   const busy = activeOperation !== null;
@@ -24,13 +24,15 @@ export function EffectTestingPanel() {
       setConfig(nextConfig);
       setStatus(`Applying ${nextEffect.displayName}…`);
       try {
-        await runOperation("lighting", () => setLighting(controller, nextConfig));
+        await runOperation("lighting", (operationController) =>
+          setLighting(operationController, nextConfig),
+        );
         setStatus(`${nextEffect.displayName} applied · protocol effect ${mode}`);
       } catch (error) {
         setStatus(error instanceof Error ? error.message : "Lighting update failed");
       }
     },
-    [config, controller, runOperation],
+    [config, runOperation],
   );
 
   useEffect(() => {

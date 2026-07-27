@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { CUSTOM_LED_COUNT } from "../../protocol/custom-lighting";
+import { CUSTOM_LED_COUNT } from "../../protocol/constants";
 import { AK820_LIGHTING_KEYS } from "../keyboard-layout";
 
 describe("official AK820 LED layout", () => {

@@ -1,5 +1,4 @@
 import type { ReportMessage } from "../protocol/types";
-import type { CommandRequest } from "../protocol/custom-lighting";
 
 export type SentReport = ReportMessage & { kind: "feature" | "output" };
 export type DeviceIdentity = {
@@ -32,9 +31,7 @@ export interface DeviceController {
    * upload callers must abort instead of continuing with corrupt data.
    */
   waitForDataInputReport(timeoutMs: number): Promise<DataView | null>;
-  /** Whether the keyboard exposes the optional 0xFF67 custom-RGB interface. */
-  supportsCommandTransport(): boolean;
-  /** Exchange all chunks of an official framed command and return its content bytes. */
-  exchangeCommand(request: CommandRequest): Promise<Uint8Array>;
+  /** Discard reports left by an earlier or cancelled image transaction. */
+  clearPendingDataInputReports(): void;
   onDisconnect(handler: () => void): () => void;
 }

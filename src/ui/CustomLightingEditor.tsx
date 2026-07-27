@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useDeviceSession } from "../device/DeviceSession";
 import { applyCustomLighting, canUseCustomLighting } from "../lighting/custom";
 import { hexToRgb } from "../lighting/color";
-import { CUSTOM_LED_COUNT } from "../protocol/custom-lighting";
+import { CUSTOM_LED_COUNT } from "../protocol/constants";
 import type { RGBColor } from "../protocol/lighting";
 import { LightingKeyboard } from "./LightingKeyboard";
 
@@ -24,12 +24,14 @@ export function useCustomLightingEditor(active = true) {
   }, [active]);
 
   useEffect(() => {
-    if (!active || !streaming || !available || busy) return;
+    if (!active || !streaming || !available) return;
     const timer = window.setInterval(async () => {
       if (sending.current) return;
       sending.current = true;
       try {
-        await applyCustomLighting(controller, colors);
+        await runOperation("custom RGB", (operationController) =>
+          applyCustomLighting(operationController, colors),
+        );
       } catch (error) {
         setStreaming(false);
         setStatus(message(error));
@@ -38,7 +40,7 @@ export function useCustomLightingEditor(active = true) {
       }
     }, 130);
     return () => window.clearInterval(timer);
-  }, [active, available, busy, colors, controller, streaming]);
+  }, [active, available, colors, runOperation, streaming]);
 
   const paint = (ledIds: readonly number[], color = hexToRgb(paintColor)) => {
     setColors((current) => {
@@ -51,7 +53,9 @@ export function useCustomLightingEditor(active = true) {
   const applyToKeyboard = async () => {
     setStatus("Applying custom RGB…");
     try {
-      await runOperation("custom RGB", () => applyCustomLighting(controller, colors));
+      await runOperation("custom RGB", (operationController) =>
+        applyCustomLighting(operationController, colors),
+      );
       setStreaming(true);
       setStatus("Live custom RGB active. Keep the Per-key panel open.");
     } catch (error) {

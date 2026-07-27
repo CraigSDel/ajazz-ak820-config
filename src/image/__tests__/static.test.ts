@@ -1,7 +1,7 @@
 import { createCanvas } from "canvas";
 import { describe, expect, test } from "vitest";
 import { RGB565_FRAME_BYTES, SCREEN_HEIGHT, SCREEN_WIDTH } from "../../protocol/constants";
-import { processStaticImage } from "../static";
+import { inspectStaticImageDimensions, processStaticImage } from "../static";
 
 function makeSolidColorPng(
   width: number,
@@ -97,5 +97,23 @@ describe("processStaticImage", () => {
     const big = new Uint8Array(11 * 1024 * 1024);
     const file = new File([big], "huge.png", { type: "image/png" });
     await expect(processStaticImage(file)).rejects.toThrow(/too large/i);
+  });
+
+  test("reads PNG dimensions without decoding the raster", () => {
+    const png = makeSolidColorPng(321, 123, 0, 0, 0);
+    expect(inspectStaticImageDimensions(png, "image/png")).toEqual({
+      width: 321,
+      height: 123,
+    });
+  });
+
+  test("rejects extreme dimensions before decoding", async () => {
+    const png = makeSolidColorPng(1, 1, 0, 0, 0);
+    const view = new DataView(png.buffer, png.byteOffset, png.byteLength);
+    view.setUint32(16, 20_000);
+    view.setUint32(20, 20_000);
+    const file = new File([png], "bomb.png", { type: "image/png" });
+
+    await expect(processStaticImage(file)).rejects.toThrow(/safe decode limit/i);
   });
 });

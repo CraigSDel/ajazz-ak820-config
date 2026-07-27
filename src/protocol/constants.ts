@@ -33,7 +33,7 @@ export const CHUNK_SIZE = 4096;
  * gives 32768 pixel bytes + 4096 padding; 8 × 4096 = 32768 leaves no
  * padding. Keeping 9 to match gohv's per-frame buffer expectation.
  */
-export const CHUNKS_PER_FRAME = 9;
+export const CUSTOM_LED_COUNT = 128;
 
 /** HID usage pages used to disambiguate the AJAZZ vendor interfaces under WebHID. */
 export const CONTROL_USAGE_PAGE = 0xff13;

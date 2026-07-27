@@ -47,6 +47,7 @@ export function LightingKeyboard(props: LightingKeyboardProps) {
   const perKey = props.mode === "per-key";
   const config = props.mode === "effect" ? props.config : null;
   const effect = config ? effectForMode(config.mode) : null;
+  const blocksAccentLighting = effect?.preview === "bloom" || effect?.preview === "spectrum";
   const [trigger, setTrigger] = useState<{ row: number; column: number } | null>(null);
   const [focusedId, setFocusedId] = useState(0);
   const buttonRefs = useRef(new Map<number, HTMLButtonElement>());
@@ -144,7 +145,7 @@ export function LightingKeyboard(props: LightingKeyboardProps) {
                   ) : (
                     <button
                       type="button"
-                      className={`keyboard-key is-${item.group}${ACCENT_KEY_IDS.has(item.ledId) ? " is-accent-key" : ""}${!perKey && trigger?.row === rowIndex && trigger.column === columnIndex ? " is-preview-origin" : ""}`}
+                      className={`keyboard-key is-${item.group}${ACCENT_KEY_IDS.has(item.ledId) ? ` is-accent-key${blocksAccentLighting ? " is-light-blocked" : ""}` : ""}${!perKey && trigger?.row === rowIndex && trigger.column === columnIndex ? " is-preview-origin" : ""}`}
                       style={
                         {
                           flexGrow: item.width ?? 1,

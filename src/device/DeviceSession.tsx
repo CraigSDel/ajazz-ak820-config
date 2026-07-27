@@ -29,7 +29,10 @@ export type DeviceSessionValue = {
   activeOperation: DeviceOperationName | null;
   connect(): Promise<void>;
   disconnect(): Promise<void>;
-  runOperation<T>(name: DeviceOperationName, work: () => Promise<T>): Promise<T>;
+  runOperation<T>(
+    name: DeviceOperationName,
+    work: (controller: DeviceController) => Promise<T>,
+  ): Promise<T>;
 };
 
 const DeviceSessionContext = createContext<DeviceSessionValue | null>(null);
@@ -74,7 +77,10 @@ export function DeviceSessionProvider({
   }, [controller, clearForDisconnect]);
 
   const runOperation = useCallback(
-    async <T,>(name: DeviceOperationName, work: () => Promise<T>): Promise<T> => {
+    async <T,>(
+      name: DeviceOperationName,
+      work: (controller: DeviceController) => Promise<T>,
+    ): Promise<T> => {
       if (!controller.isConnected()) {
         throw new DeviceFailure({ kind: "device-disconnected" });
       }
@@ -92,12 +98,69 @@ export function DeviceSessionProvider({
       };
       activeRef.current = token;
       setActiveOperation(name);
+      const assertActive = () => {
+        if (
+          token.generation !== generation.current ||
+          activeRef.current?.id !== token.id ||
+          !controller.isConnected()
+        ) {
+          throw new DeviceFailure({ kind: "device-disconnected" });
+        }
+      };
+      const operationController: DeviceController = {
+        isConnected: () => {
+          try {
+            assertActive();
+            return true;
+          } catch {
+            return false;
+          }
+        },
+        getIdentity: () => {
+          assertActive();
+          return controller.getIdentity();
+        },
+        connect: async () => {
+          throw new DeviceFailure({
+            kind: "validation",
+            message: "Cannot connect during a device operation.",
+          });
+        },
+        disconnect: async () => {
+          throw new DeviceFailure({
+            kind: "validation",
+            message: "Cannot disconnect through an operation controller.",
+          });
+        },
+        sendFeatureReport: async (report) => {
+          assertActive();
+          await controller.sendFeatureReport(report);
+        },
+        sendReport: async (report) => {
+          assertActive();
+          await controller.sendReport(report);
+        },
+        receiveFeatureReport: async (reportId) => {
+          assertActive();
+          return controller.receiveFeatureReport(reportId);
+        },
+        waitForDataInputReport: async (timeoutMs) => {
+          assertActive();
+          return controller.waitForDataInputReport(timeoutMs);
+        },
+        clearPendingDataInputReports: () => {
+          assertActive();
+          controller.clearPendingDataInputReports();
+        },
+        onDisconnect: (handler) => controller.onDisconnect(handler),
+      };
 
       try {
         if (!controller.isConnected()) {
           throw new DeviceFailure({ kind: "device-disconnected" });
         }
-        const result = await work();
+        const result = await work(operationController);
+        assertActive();
         setHealth("connected");
         setLastResponseAt(new Date());
         return result;

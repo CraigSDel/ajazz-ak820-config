@@ -203,22 +203,11 @@ button:disabled {
   white-space: nowrap;
 }
 
-.connection-pill.health-responsive {
+.connection-pill.health-connected {
   --health-dot: #57d38c;
 
   border-color: #347354;
   background: #14251d;
-}
-
-.connection-pill.health-checking {
-  --health-dot: #e0b85b;
-}
-
-.connection-pill.health-unresponsive {
-  --health-dot: #f0a654;
-
-  border-color: #8c6338;
-  background: #2a2117;
 }
 
 .app-shell {
@@ -510,37 +499,16 @@ button:disabled {
   line-height: 1.35;
 }
 
-.device-health.health-responsive {
+.device-health.health-connected {
   border-color: #347354;
   background: #14251d;
 }
 
-.device-health.health-responsive .device-health-dot {
+.device-health.health-connected .device-health-dot {
   background: #57d38c;
   box-shadow:
     0 0 0 3px #57d38c22,
     0 0 10px #57d38c88;
-}
-
-.device-health.health-checking .device-health-dot {
-  background: #e0b85b;
-  animation: health-pulse 0.9s ease-in-out infinite alternate;
-}
-
-.device-health.health-unresponsive {
-  border-color: #8c6338;
-  background: #2a2117;
-}
-
-.device-health.health-unresponsive .device-health-dot {
-  background: #f0a654;
-  box-shadow: 0 0 0 3px #f0a65422;
-}
-
-@keyframes health-pulse {
-  to {
-    opacity: 0.35;
-  }
 }
 
 fieldset {
@@ -1084,13 +1052,6 @@ select {
   font: inherit;
 }
 
-.control-help {
-  display: block;
-  margin-top: 0.35rem;
-  color: #8e98a2;
-  line-height: 1.4;
-}
-
 .range-control input {
   min-height: 2.4rem;
   padding: 0;
@@ -1133,13 +1094,6 @@ select {
   margin-top: 0.75rem;
 }
 
-.button-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
-}
-
 .keyboard-preview {
   --key-light: #ff0000;
   --key-brightness: 1;
@@ -1161,8 +1115,7 @@ select {
     0 10px 24px #0007;
 }
 
-.keyboard-context,
-.keyboard-hint {
+.keyboard-context {
   margin: 0.65rem 0 1.25rem;
   color: #89919a;
   font-size: 0.75rem;
@@ -1325,6 +1278,11 @@ select {
   border-color: #df5c59;
   background: linear-gradient(145deg, #252a30, #1b1f24);
   transform: translateY(-1px);
+}
+
+.file-control:focus-within:not(.is-disabled) {
+  outline: 3px solid #e66b68;
+  outline-offset: 2px;
 }
 
 .file-control.is-disabled {
@@ -1585,6 +1543,14 @@ select {
   animation-delay: calc(var(--key-index) * -0.06s);
 }
 
+.keyboard-preview .keyboard-key.is-light-blocked {
+  animation: none;
+  box-shadow:
+    inset 0 -2px 0 #a87500,
+    0 2px 1px #050607;
+  filter: none;
+}
+
 .keyboard-preview.is-breath .keyboard-key {
   animation: keyboard-breathe var(--effect-speed) ease-in-out infinite alternate;
 }
@@ -1815,9 +1781,7 @@ select {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .keyboard-preview .keyboard-key,
-  .device-health.health-checking .device-health-dot,
-  .connection-pill.health-checking .device-health-dot {
+  .keyboard-preview .keyboard-key {
     animation: none;
   }
 }

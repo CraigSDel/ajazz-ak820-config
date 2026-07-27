@@ -20,10 +20,11 @@ describe("TimeSyncPanel", () => {
   test("clicking 'Sync Now' sends the 4-packet time-sync sequence", async () => {
     const ctrl = new MockDeviceController();
     await ctrl.connect();
-    const { getByRole } = renderPanel(ctrl);
+    const { getByRole, getByText } = renderPanel(ctrl);
     fireEvent.click(getByRole("button", { name: /sync/i }));
     // Time sync is 4 reports.
     await waitFor(() => expect(ctrl.sent.length).toBe(4));
+    await waitFor(() => expect(getByText("Time synced")).toBeTruthy());
   });
 
   test("button is disabled when not connected", () => {

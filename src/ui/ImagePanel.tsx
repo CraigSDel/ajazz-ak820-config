@@ -17,7 +17,7 @@ const STATIC_FRAME_DELAY_MS = 500;
 const MAX_SELECTION_BYTES = 50 * 1024 * 1024;
 
 export function ImagePanel() {
-  const { controller, connected, activeOperation, runOperation } = useDeviceSession();
+  const { connected, activeOperation, runOperation } = useDeviceSession();
   const [prepared, setPrepared] = useState<Prepared | null>(null);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState<string | null>(null);
@@ -102,12 +102,17 @@ export function ImagePanel() {
     setStatus("Uploading…");
     try {
       if (prepared.staticSingle) {
-        await runOperation("image upload", () =>
-          uploadStaticImage(controller, prepared.frames[0], setProgress),
+        await runOperation("image upload", (operationController) =>
+          uploadStaticImage(operationController, prepared.frames[0], setProgress),
         );
       } else {
-        await runOperation("image upload", () =>
-          uploadAnimatedImage(controller, prepared.frames, prepared.delaysMs, setProgress),
+        await runOperation("image upload", (operationController) =>
+          uploadAnimatedImage(
+            operationController,
+            prepared.frames,
+            prepared.delaysMs,
+            setProgress,
+          ),
         );
       }
       setStatus("Uploaded");

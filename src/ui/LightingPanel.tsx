@@ -26,7 +26,7 @@ const COLOR_PRESETS = [
 ];
 
 export function LightingPanel() {
-  const { controller, connected, activeOperation, runOperation } = useDeviceSession();
+  const { connected, activeOperation, runOperation } = useDeviceSession();
   const [config, setConfig] = useState<LightingConfig>(DEFAULT_LIGHTING_CONFIG);
   const [appliedConfig, setAppliedConfig] = useState<LightingConfig | null>(null);
   const [sleepTime, setSleepTime] = useState<SleepTime>(LightingSleepTime.Never);
@@ -54,7 +54,9 @@ export function LightingPanel() {
   const applyConfig = async (nextConfig: LightingConfig) => {
     setStatus("Applying lighting…");
     try {
-      await runOperation("lighting", () => setLighting(controller, nextConfig));
+      await runOperation("lighting", (operationController) =>
+        setLighting(operationController, nextConfig),
+      );
       setAppliedConfig({ ...nextConfig, color: { ...nextConfig.color } });
       setStatus(`Lighting applied to AK820 Pro · mode ${nextConfig.mode}`);
     } catch (error) {
@@ -67,7 +69,9 @@ export function LightingPanel() {
   const applySleep = async () => {
     setSleepStatus("Applying sleep timeout…");
     try {
-      await runOperation("lighting sleep", () => setLightingSleepTime(controller, sleepTime));
+      await runOperation("lighting sleep", (operationController) =>
+        setLightingSleepTime(operationController, sleepTime),
+      );
       setSleepStatus("Sleep timeout applied");
     } catch (error) {
       setSleepStatus(error instanceof Error ? error.message : "Sleep timeout update failed");

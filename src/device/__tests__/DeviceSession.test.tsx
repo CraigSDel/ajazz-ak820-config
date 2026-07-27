@@ -8,7 +8,7 @@ import { DeviceSessionProvider, useDeviceSession } from "../DeviceSession";
 afterEach(cleanup);
 
 function SessionProbe({ firstWork }: { firstWork: () => Promise<void> }) {
-  const { activeOperation, runOperation } = useDeviceSession();
+  const { activeOperation, connected, health, runOperation } = useDeviceSession();
   const startFirst = () =>
     runOperation("lighting", firstWork).catch((error: Error) => {
       document.body.dataset.firstError = error.message;
@@ -20,6 +20,7 @@ function SessionProbe({ firstWork }: { firstWork: () => Promise<void> }) {
   return (
     <>
       <p>{activeOperation ?? "idle"}</p>
+      <p data-testid="connection-state">{`${connected}:${health}`}</p>
       <button type="button" onClick={startFirst}>
         first
       </button>
@@ -85,5 +86,27 @@ describe("DeviceSessionProvider", () => {
     expect(view.getByText("lighting")).toBeTruthy();
     await controller.disconnect();
     await waitFor(() => expect(view.getByText("idle")).toBeTruthy());
+  });
+
+  test("does not publish operation success after a physical disconnect", async () => {
+    const controller = new MockDeviceController();
+    await controller.connect();
+    let finish: () => void = () => {};
+    const work = () => new Promise<void>((resolve) => (finish = resolve));
+    const view = render(
+      <DeviceSessionProvider controller={controller}>
+        <SessionProbe firstWork={work} />
+      </DeviceSessionProvider>,
+    );
+
+    fireEvent.click(view.getByRole("button", { name: "first" }));
+    await controller.disconnect();
+    finish();
+
+    await waitFor(() =>
+      expect(view.getByTestId("connection-state").textContent).toBe("false:disconnected"),
+    );
+    await waitFor(() => expect(document.body.dataset.firstError).toMatch(/disconnected/i));
+    delete document.body.dataset.firstError;
   });
 });

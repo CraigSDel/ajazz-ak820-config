@@ -44,13 +44,12 @@ describe("syncTime", () => {
 });
 
 describe("setLighting", () => {
-  test("uses the AK820 Pro feature transaction even when the optional command interface exists", async () => {
-    const ctrl = new MockDeviceController({ commandTransport: true });
+  test("uses the AK820 Pro feature transaction for effect presets", async () => {
+    const ctrl = new MockDeviceController();
     await ctrl.connect();
 
     await setLighting(ctrl, { ...LIGHTING_CONFIG, mode: LightingMode.Effect11 });
 
-    expect(ctrl.commandRequests).toHaveLength(0);
     expect(ctrl.sent.map((report) => report.reportId)).toEqual([
       0x04, 0x04, 0x0b, 0x04, 0x04, 0x04, 0x0b, 0x04,
     ]);
@@ -162,6 +161,19 @@ describe("uploadStaticImage", () => {
     ).rejects.toMatchObject({ error: { kind: "ack-timeout", chunkIndex: 0 } });
 
     expect(ctrl.sent).toHaveLength(3);
+    expect(ctrl.sent.at(-1)?.kind).toBe("output");
+  });
+
+  test("aborts before SAVE when a data chunk receives a malformed acknowledgement", async () => {
+    const ctrl = new MockDeviceController();
+    ctrl.waitForDataInputReport = async () =>
+      new DataView(Uint8Array.from([0x01, 0x5a, 0xff, 0x00]).buffer);
+    await ctrl.connect();
+
+    await expect(
+      uploadStaticImage(ctrl, new Uint8Array(RGB565_FRAME_BYTES), () => {}),
+    ).rejects.toThrow(/invalid image acknowledgement/i);
+
     expect(ctrl.sent.at(-1)?.kind).toBe("output");
   });
 });
