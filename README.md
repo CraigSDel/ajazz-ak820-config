@@ -85,7 +85,9 @@ conversion to RGB565.
 Custom RGB uses a write-only feature-report transaction recovered from OEM
 driver captures. The keyboard firmware returns to its stored preset unless the
 custom table is continuously streamed, so live RGB runs only while the per-key
-panel is open. The app cannot read or restore a previous custom layout.
+panel is open. Refreshes are scheduled start-to-start so USB transfer time does
+not create a visible gap. The app cannot read or restore a previous custom
+layout.
 
 ## Troubleshooting
 

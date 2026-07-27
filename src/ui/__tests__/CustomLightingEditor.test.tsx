@@ -83,7 +83,7 @@ describe("CustomLightingEditor", () => {
     await act(async () => Promise.resolve());
     expect(controller.sent).toHaveLength(10);
 
-    await act(async () => vi.advanceTimersByTimeAsync(130));
+    await act(async () => vi.advanceTimersByTimeAsync(100));
     expect(controller.sent).toHaveLength(20);
     fireEvent.click(getByRole("button", { name: "Stop live RGB" }));
     await act(async () => vi.advanceTimersByTimeAsync(260));

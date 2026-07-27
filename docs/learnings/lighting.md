@@ -81,9 +81,11 @@ table rather than the editor's sparse preview IDs.
 
 Only writing is implemented. Reading and automatic restore remain disabled
 until equivalent AK820 Pro captures establish those transactions. The firmware
-resumes its stored preset after a single table, matching the OEM driver's
-continuous approximately 130 ms retransmission. Streaming stops when the user
-leaves the Per-key panel or presses Stop.
+resumes its stored preset after a single table. The app uses a deadline-based
+100 ms start-to-start refresh, leaving margin below the OEM driver's observed
+approximately 130 ms retransmission cadence without adding transfer time to the
+refresh period. Streaming stops when the user leaves the Per-key panel or
+presses Stop.
 
 ## Sleep
 

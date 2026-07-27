@@ -7,6 +7,9 @@ import type { RGBColor } from "../protocol/lighting";
 import { LightingKeyboard } from "./LightingKeyboard";
 
 const BLACK: RGBColor = { red: 0, green: 0, blue: 0 };
+// The firmware falls back to its saved preset shortly after the last custom
+// table. Keep some margin below the ~130 ms cadence seen in the OEM driver.
+const CUSTOM_REFRESH_INTERVAL_MS = 100;
 const emptyColors = () => Array.from({ length: CUSTOM_LED_COUNT }, () => ({ ...BLACK }));
 
 export function useCustomLightingEditor(active = true) {
@@ -15,7 +18,9 @@ export function useCustomLightingEditor(active = true) {
   const [paintColor, setPaintColor] = useState("#ff0000");
   const [status, setStatus] = useState<string | null>(null);
   const [streaming, setStreaming] = useState(false);
-  const sending = useRef(false);
+  const colorsRef = useRef(colors);
+  const lastTransferStartedAt = useRef<number | null>(null);
+  colorsRef.current = colors;
   const available = connected && canUseCustomLighting(controller);
   const busy = activeOperation !== null;
 
@@ -25,22 +30,40 @@ export function useCustomLightingEditor(active = true) {
 
   useEffect(() => {
     if (!active || !streaming || !available) return;
-    const timer = window.setInterval(async () => {
-      if (sending.current) return;
-      sending.current = true;
+
+    let cancelled = false;
+    let timer: number | undefined;
+
+    const pump = async () => {
+      const startedAt = performance.now();
+      lastTransferStartedAt.current = startedAt;
       try {
         await runOperation("custom RGB", (operationController) =>
-          applyCustomLighting(operationController, colors),
+          applyCustomLighting(operationController, colorsRef.current),
         );
       } catch (error) {
-        setStreaming(false);
-        setStatus(message(error));
-      } finally {
-        sending.current = false;
+        if (!cancelled) {
+          setStreaming(false);
+          setStatus(message(error));
+        }
+        return;
       }
-    }, 130);
-    return () => window.clearInterval(timer);
-  }, [active, available, colors, runOperation, streaming]);
+
+      if (cancelled) return;
+      const remaining = Math.max(
+        0,
+        CUSTOM_REFRESH_INTERVAL_MS - (performance.now() - startedAt),
+      );
+      timer = window.setTimeout(pump, remaining);
+    };
+
+    const elapsed = performance.now() - (lastTransferStartedAt.current ?? -Infinity);
+    timer = window.setTimeout(pump, Math.max(0, CUSTOM_REFRESH_INTERVAL_MS - elapsed));
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [active, available, runOperation, streaming]);
 
   const paint = (ledIds: readonly number[], color = hexToRgb(paintColor)) => {
     setColors((current) => {
@@ -53,6 +76,7 @@ export function useCustomLightingEditor(active = true) {
   const applyToKeyboard = async () => {
     setStatus("Applying custom RGB…");
     try {
+      lastTransferStartedAt.current = performance.now();
       await runOperation("custom RGB", (operationController) =>
         applyCustomLighting(operationController, colors),
       );
