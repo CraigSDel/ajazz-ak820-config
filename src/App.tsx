@@ -23,11 +23,36 @@ export default function App() {
 
 type Workspace = "lighting" | "display" | "testing" | "device";
 
-const BASE_WORKSPACES: { id: Workspace; label: string; description: string }[] = [
-  { id: "lighting", label: "Lighting", description: "Effects, colour and sleep" },
-  { id: "display", label: "Display", description: "TFT image upload" },
-  { id: "testing", label: "Testing", description: "Hardware effect validation" },
-  { id: "device", label: "Device", description: "Connection and time" },
+const BASE_WORKSPACES: {
+  id: Workspace;
+  label: string;
+  description: string;
+  tagline: string;
+}[] = [
+  {
+    id: "lighting",
+    label: "Lighting",
+    description: "Effects, colour and sleep",
+    tagline: "Make every key unmistakably yours.",
+  },
+  {
+    id: "display",
+    label: "Display",
+    description: "TFT image upload",
+    tagline: "A new point of view, right on your keyboard.",
+  },
+  {
+    id: "testing",
+    label: "Testing",
+    description: "Hardware effect validation",
+    tagline: "See exactly how every effect performs.",
+  },
+  {
+    id: "device",
+    label: "Device",
+    description: "Connection and time",
+    tagline: "Connected, in sync and ready to go.",
+  },
 ];
 
 const DEFAULT_SHOW_TESTING = import.meta.env.VITE_SHOW_HARDWARE_TESTING !== "false";
@@ -43,26 +68,30 @@ export function Configurator({ showTesting = DEFAULT_SHOW_TESTING }: { showTesti
   return (
     <div className="app">
       <header className="app-header">
-        <div className="brand-lockup">
-          <span className="brand-mark" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </span>
-          <div>
-            <p className="eyebrow">Keyboard control</p>
-            <h1>AJAZZ AK820 Pro</h1>
+        <div className="app-header-inner">
+          <div className="brand-lockup">
+            <span className="brand-mark" aria-hidden="true">
+              <svg viewBox="0 0 32 32">
+                <title>Keyboard</title>
+                <rect x="4.5" y="7.5" width="23" height="17" rx="4.5" />
+                <path d="M9 13h1M14 13h1M19 13h1M23 13h1M9 18h1M14 18h1M19 18h5" />
+              </svg>
+            </span>
+            <div>
+              <p className="eyebrow">Keyboard control</p>
+              <h1>AJAZZ AK820 Pro</h1>
+            </div>
           </div>
+          <button
+            type="button"
+            className={`connection-pill health-${health}`}
+            onClick={() => setWorkspace("device")}
+            aria-label={`${healthText(health)}. Open device settings.`}
+          >
+            <span className="device-health-dot" aria-hidden="true" />
+            <span className="connection-label">{healthText(health)}</span>
+          </button>
         </div>
-        <button
-          type="button"
-          className={`connection-pill health-${health}`}
-          onClick={() => setWorkspace("device")}
-          aria-label={`${healthText(health)}. Open device settings.`}
-        >
-          <span className="device-health-dot" aria-hidden="true" />
-          {healthText(health)}
-        </button>
       </header>
 
       <div className="app-shell">
@@ -83,24 +112,24 @@ export function Configurator({ showTesting = DEFAULT_SHOW_TESTING }: { showTesti
           ))}
         </nav>
 
-        <main className="workspace">
+        <main className={`workspace workspace-${workspace}`}>
           <div className="workspace-heading">
-            <div>
-              <p className="eyebrow">Configurator</p>
-              <h2>{current.label}</h2>
-            </div>
-            <p>{current.description}</p>
+            <p className="workspace-kicker">AK820 Pro</p>
+            <h2>{current.label}</h2>
+            <p>{current.tagline}</p>
           </div>
 
-          {workspace === "lighting" && <LightingPanel />}
-          {workspace === "display" && <ImagePanel />}
-          {workspace === "testing" && showTesting && <EffectTestingPanel />}
-          {workspace === "device" && (
-            <div className="device-workspace">
-              <ConnectPanel />
-              <TimeSyncPanel />
-            </div>
-          )}
+          <div className="workspace-content" key={workspace}>
+            {workspace === "lighting" && <LightingPanel />}
+            {workspace === "display" && <ImagePanel />}
+            {workspace === "testing" && showTesting && <EffectTestingPanel />}
+            {workspace === "device" && (
+              <div className="device-workspace">
+                <ConnectPanel />
+                <TimeSyncPanel />
+              </div>
+            )}
+          </div>
         </main>
       </div>
 

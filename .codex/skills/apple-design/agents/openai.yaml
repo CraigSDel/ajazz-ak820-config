@@ -1,0 +1,4 @@
+interface:
+  display_name: "Apple Design"
+  short_description: "Design and audit Apple-coherent interfaces"
+  default_prompt: "Use $apple-design to audit this interface and make its structure, controls, materials, and motion feel Apple-coherent."

@@ -42,7 +42,7 @@ export function EffectTestingPanel() {
   }, [connected, config.mode, selectAndApply]);
 
   return (
-    <section className="panel lighting-panel">
+    <section className="panel testing-panel testing-workspace">
       <EffectValidation
         mode={config.mode}
         canApply={connected && !busy}

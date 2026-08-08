@@ -81,7 +81,7 @@ export function LightingPanel() {
   };
 
   return (
-    <section className="panel lighting-panel">
+    <section className="panel lighting-panel lighting-workbench">
       <div className="lighting-page-toolbar">
         <div>
           <p className="eyebrow">Lighting workspace</p>
@@ -117,7 +117,10 @@ export function LightingPanel() {
             changes are sent only when you apply them.
           </>
         ) : (
-          "Click or drag to paint · use arrow keys to move · Apply starts live RGB."
+          <>
+            Click or drag to paint · use arrow keys to move · Apply starts live RGB.
+            <span className="mobile-pan-hint"> Swipe sideways to reach every key.</span>
+          </>
         )}
       </p>
       {editingMode === "effects" ? (
@@ -246,8 +249,10 @@ export function LightingPanel() {
           </fieldset>
 
           <div className="subsection sleep-section">
-            <p className="eyebrow">Power saving</p>
-            <h3>Lighting sleep</h3>
+            <div className="sleep-section-heading">
+              <p className="eyebrow">Power saving</p>
+              <h3>Lighting sleep</h3>
+            </div>
             <label>
               Turn lighting off after
               <select
