@@ -13,6 +13,11 @@ dist-ssr
 coverage
 *.local
 
+# Local environment files may contain credentials or personal settings.
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
