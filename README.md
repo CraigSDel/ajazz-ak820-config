@@ -153,8 +153,10 @@ AJAZZ desktop driver is not required.
 | `npm run build` | Type-check and create a production build |
 | `npm run preview` | Preview the production build locally |
 
-You can also run `./start.sh`; it installs locked dependencies when needed and
-passes additional arguments to Vite, such as `./start.sh --host`.
+You can also run `./start.sh`; it installs locked dependencies when needed,
+stops an older development server from this checkout, and starts on port 5173
+without silently moving to another port. Set `APP_PORT` to choose a different
+port, and pass additional arguments to Vite as usual, such as `./start.sh --host`.
 
 The hardware Testing workspace is shown by default. To hide it, copy
 `.env.example` to `.env.local`, set the following value, and restart the dev
