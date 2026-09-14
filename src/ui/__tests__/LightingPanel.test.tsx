@@ -23,6 +23,7 @@ describe("LightingPanel", () => {
     const view = await renderPanel();
     const preview = view.getByLabelText(/Virtual AK820 Pro lighting preview/);
     expect(preview.getAttribute("aria-label")).toContain("#ff0000");
+    expect(preview.getAttribute("aria-label")).toContain("provisional simulation");
 
     fireEvent.change(view.getByLabelText("Lighting color"), { target: { value: "#123456" } });
     expect(preview.getAttribute("aria-label")).toContain("#123456");
@@ -157,6 +158,28 @@ describe("LightingPanel", () => {
     fireEvent.pointerDown(key);
     expect(preview.classList.contains("has-preview-trigger")).toBe(true);
     expect(key.classList.contains("is-preview-origin")).toBe(true);
+  });
+
+  test("includes side keys in reactive geometry", async () => {
+    const view = await renderPanel();
+    selectEffect(view, "Ripples");
+    const preview = view.getByLabelText(/Virtual AK820 Pro lighting preview/);
+    const sideKey = preview.querySelector(".keyboard-side .is-navigation") as HTMLElement;
+
+    expect(sideKey.getAttribute("style")).toContain("--key-x");
+    fireEvent.pointerDown(sideKey);
+    expect(sideKey.classList.contains("is-preview-origin")).toBe(true);
+  });
+
+  test("maps firmware speed levels to profile durations", async () => {
+    const view = await renderPanel();
+    selectEffect(view, "Breath");
+    const preview = view.getByLabelText(/Virtual AK820 Pro lighting preview/);
+
+    fireEvent.change(view.getByLabelText("Speed"), { target: { value: "1" } });
+    expect(preview.getAttribute("style")).toContain("--effect-speed: 2.4s");
+    fireEvent.change(view.getByLabelText("Speed"), { target: { value: "5" } });
+    expect(preview.getAttribute("style")).toContain("--effect-speed: 0.8s");
   });
 
   test("submits lighting through the device transaction", async () => {

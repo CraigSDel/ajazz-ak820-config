@@ -4,7 +4,7 @@ import {
   type LightingMode as ProtocolEffectId,
 } from "../protocol/lighting";
 
-export type EffectPreview =
+export type EffectAnimationId =
   | "off"
   | "steady"
   | "reactive-on"
@@ -26,13 +26,33 @@ export type EffectPreview =
   | "diagonal-rain"
   | "shuttle";
 
+export type EffectAnimationProfile = {
+  id: EffectAnimationId;
+  spatial:
+    | "none"
+    | "uniform"
+    | "random"
+    | "vertical"
+    | "horizontal"
+    | "radial"
+    | "diagonal"
+    | "rotational";
+  palette: "selected" | "selectable" | "fixed-rainbow";
+  envelope: "constant" | "pulse" | "spark" | "trail" | "reactive-on" | "reactive-off";
+  /** Cycle duration, in seconds, for firmware speed levels 1 through 5. */
+  speedSeconds: readonly [number, number, number, number, number];
+  direction: "none" | "horizontal" | "vertical";
+  propagation: "none" | "origin" | "radial" | "horizontal";
+  calibrated: boolean;
+};
+
 export type LightingEffect = {
   /** Stable value selected by the keyboard protocol. */
   protocolId: ProtocolEffectId;
   /** Human-facing, replaceable interpretation of the physical animation. */
   displayName: string;
   description: string;
-  preview: EffectPreview;
+  animation: EffectAnimationProfile;
   supportsColor: boolean;
   supportsPalette: boolean;
   supportsSpeed: boolean;
@@ -49,11 +69,12 @@ const VERTICAL = [
   [LightingDirection.Up, "Up"],
   [LightingDirection.Down, "Down"],
 ] as const;
+const SPEED_SECONDS = [2.4, 2, 1.6, 1.2, 0.8] as const;
 
 /**
  * Raw IDs, names, and control capabilities match the current OEM lighting
- * table and the AK820 Pro capture-backed implementations. Preview artwork is
- * an approximate presentation of those firmware effects.
+ * table and the AK820 Pro capture-backed implementations. Animation profiles
+ * remain provisional until compared with recordings of the physical keyboard.
  */
 export const LIGHTING_EFFECTS: readonly LightingEffect[] = [
   effect(LightingMode.Off, "Off", "Turn all key lighting off.", "off", false, false, NONE),
@@ -239,7 +260,7 @@ function effect(
   protocolId: ProtocolEffectId,
   displayName: string,
   description: string,
-  preview: EffectPreview,
+  animationId: EffectAnimationId,
   supportsColor: boolean,
   supportsPalette: boolean,
   directions: LightingEffect["directions"],
@@ -249,13 +270,162 @@ function effect(
     protocolId,
     displayName,
     description,
-    preview,
+    animation: animationProfile(animationId),
     supportsColor,
     supportsPalette,
     supportsSpeed: protocolId !== LightingMode.Off && protocolId !== LightingMode.Effect1,
     directions,
     reactive,
   };
+}
+
+function animationProfile(id: EffectAnimationId): EffectAnimationProfile {
+  const profiles: Record<
+    EffectAnimationId,
+    Omit<EffectAnimationProfile, "id" | "speedSeconds" | "calibrated">
+  > = {
+    off: {
+      spatial: "none",
+      palette: "selected",
+      envelope: "constant",
+      direction: "none",
+      propagation: "none",
+    },
+    steady: {
+      spatial: "uniform",
+      palette: "selectable",
+      envelope: "constant",
+      direction: "none",
+      propagation: "none",
+    },
+    "reactive-on": {
+      spatial: "uniform",
+      palette: "selectable",
+      envelope: "reactive-on",
+      direction: "none",
+      propagation: "origin",
+    },
+    "reactive-off": {
+      spatial: "uniform",
+      palette: "selectable",
+      envelope: "reactive-off",
+      direction: "none",
+      propagation: "origin",
+    },
+    twinkle: {
+      spatial: "random",
+      palette: "selectable",
+      envelope: "spark",
+      direction: "none",
+      propagation: "none",
+    },
+    snow: {
+      spatial: "vertical",
+      palette: "selectable",
+      envelope: "trail",
+      direction: "none",
+      propagation: "none",
+    },
+    bloom: {
+      spatial: "radial",
+      palette: "fixed-rainbow",
+      envelope: "pulse",
+      direction: "none",
+      propagation: "none",
+    },
+    breath: {
+      spatial: "uniform",
+      palette: "selectable",
+      envelope: "pulse",
+      direction: "none",
+      propagation: "none",
+    },
+    spectrum: {
+      spatial: "horizontal",
+      palette: "fixed-rainbow",
+      envelope: "constant",
+      direction: "none",
+      propagation: "none",
+    },
+    fountain: {
+      spatial: "radial",
+      palette: "selectable",
+      envelope: "trail",
+      direction: "none",
+      propagation: "radial",
+    },
+    "cross-wave": {
+      spatial: "vertical",
+      palette: "selectable",
+      envelope: "trail",
+      direction: "vertical",
+      propagation: "none",
+    },
+    "rolling-wave": {
+      spatial: "horizontal",
+      palette: "selectable",
+      envelope: "trail",
+      direction: "horizontal",
+      propagation: "none",
+    },
+    "rotating-wave": {
+      spatial: "rotational",
+      palette: "selectable",
+      envelope: "trail",
+      direction: "horizontal",
+      propagation: "none",
+    },
+    burst: {
+      spatial: "radial",
+      palette: "selectable",
+      envelope: "reactive-on",
+      direction: "none",
+      propagation: "radial",
+    },
+    "dual-trail": {
+      spatial: "horizontal",
+      palette: "selectable",
+      envelope: "reactive-on",
+      direction: "none",
+      propagation: "horizontal",
+    },
+    ripple: {
+      spatial: "radial",
+      palette: "selectable",
+      envelope: "reactive-on",
+      direction: "none",
+      propagation: "radial",
+    },
+    flow: {
+      spatial: "horizontal",
+      palette: "selectable",
+      envelope: "trail",
+      direction: "horizontal",
+      propagation: "none",
+    },
+    "layered-wave": {
+      spatial: "diagonal",
+      palette: "selectable",
+      envelope: "pulse",
+      direction: "none",
+      propagation: "none",
+    },
+    "diagonal-rain": {
+      spatial: "diagonal",
+      palette: "selectable",
+      envelope: "trail",
+      direction: "horizontal",
+      propagation: "none",
+    },
+    shuttle: {
+      spatial: "horizontal",
+      palette: "selectable",
+      envelope: "trail",
+      direction: "none",
+      propagation: "none",
+    },
+  };
+  return { id, ...profiles[id], speedSeconds: SPEED_SECONDS, calibrated: false };
 }
 
 export function effectForMode(protocolId: ProtocolEffectId): LightingEffect {

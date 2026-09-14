@@ -13,12 +13,35 @@ describe("AK820 lighting effect metadata", () => {
     expect(effectForMode(LightingMode.Effect1)).toMatchObject({
       protocolId: 1,
       displayName: "Static",
-      preview: "steady",
+      animation: { id: "steady" },
     });
     expect(effectForMode(LightingMode.Effect15)).toMatchObject({
       protocolId: 15,
       displayName: "Ripples",
-      preview: "ripple",
+      animation: { id: "ripple" },
+    });
+  });
+
+  test("defines a complete, distinct provisional animation profile for every effect", () => {
+    const profiles = LIGHTING_EFFECTS.filter(
+      ({ protocolId }) => protocolId !== LightingMode.Off,
+    ).map(({ animation }) => animation);
+
+    expect(new Set(profiles.map(({ id }) => id)).size).toBe(19);
+    for (const profile of profiles) {
+      expect(profile.speedSeconds).toHaveLength(5);
+      expect(profile.speedSeconds.every((duration) => duration > 0)).toBe(true);
+      expect(profile.calibrated).toBe(false);
+      expect(profile.spatial).toBeTruthy();
+      expect(profile.envelope).toBeTruthy();
+    }
+  });
+
+  test("models the Outward effect as radial propagation from the keyboard center", () => {
+    expect(effectForMode(LightingMode.Effect9).animation).toMatchObject({
+      id: "fountain",
+      spatial: "radial",
+      propagation: "radial",
     });
   });
 

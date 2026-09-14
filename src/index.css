@@ -1394,9 +1394,7 @@ select {
   padding: 0.65rem;
   border: 1px solid #08090a;
   border-radius: 7px;
-  background:
-    linear-gradient(90deg, #151719, #303236 48%, #151719),
-    #1a1c1e;
+  background: linear-gradient(90deg, #151719, #303236 48%, #151719), #1a1c1e;
   box-shadow:
     inset 0 1px 0 #55595e,
     inset 0 -3px 0 #090a0b,
@@ -1769,9 +1767,7 @@ select {
   padding: 0.2rem;
   border: 2px solid #08090a;
   border-radius: 2px;
-  background:
-    linear-gradient(#123145aa, #07141d),
-    #07141d;
+  background: linear-gradient(#123145aa, #07141d), #07141d;
   box-shadow: inset 0 0 0 1px #566069;
   color: #7ad8ff;
   font-size: 0.35rem;
@@ -1817,11 +1813,80 @@ select {
   min-width: 0;
 }
 
+.keyboard-preview.is-rainbow .keyboard-key,
 .keyboard-preview.is-bloom .keyboard-key,
-.keyboard-preview.is-spectrum .keyboard-key,
-.keyboard-preview.is-rainbow .keyboard-key {
-  animation: keyboard-rainbow var(--effect-speed) linear infinite;
-  animation-delay: calc(var(--key-index) * -0.06s);
+.keyboard-preview.is-spectrum .keyboard-key {
+  --key-light: hsl(calc(var(--key-x) * 22deg + var(--key-y) * 17deg) 100% 58%);
+}
+
+.keyboard-preview.is-steady.is-rainbow .keyboard-key {
+  animation: keyboard-static-palette var(--effect-speed) linear infinite;
+  animation-delay: calc(var(--key-x) * -0.07s);
+}
+
+.keyboard-preview.is-twinkle .keyboard-key {
+  animation: keyboard-twinkle var(--effect-speed) steps(2, jump-none) infinite;
+  animation-delay: calc(var(--key-seed) * var(--effect-speed) * -1);
+}
+
+.keyboard-preview.is-snow .keyboard-key {
+  animation: keyboard-snow var(--effect-speed) ease-in infinite;
+  animation-delay: calc((var(--key-y) * -0.19s) + (var(--key-seed) * -0.35s));
+}
+
+.keyboard-preview.is-bloom .keyboard-key {
+  animation: keyboard-bloom var(--effect-speed) ease-in-out infinite;
+  animation-delay: calc(var(--key-distance) * -0.075s);
+}
+
+.keyboard-preview.is-breath .keyboard-key {
+  animation: keyboard-breath var(--effect-speed) ease-in-out infinite alternate;
+}
+
+.keyboard-preview.is-spectrum .keyboard-key {
+  animation: keyboard-spectrum var(--effect-speed) linear infinite;
+  animation-delay: calc(var(--key-x) * -0.055s);
+}
+
+.keyboard-preview.is-fountain .keyboard-key {
+  animation: keyboard-fountain var(--effect-speed) ease-out infinite;
+  animation-delay: calc(var(--key-distance) * 0.08s);
+  animation-fill-mode: backwards;
+}
+
+.keyboard-preview.is-cross-wave .keyboard-key {
+  animation: keyboard-cross-wave var(--effect-speed) ease-in-out infinite;
+  animation-delay: calc(var(--key-y) * -0.18s);
+}
+
+.keyboard-preview.is-rolling-wave .keyboard-key {
+  animation: keyboard-rolling-wave var(--effect-speed) ease-in-out infinite;
+  animation-delay: calc(var(--key-x) * -0.075s);
+}
+
+.keyboard-preview.is-rotating-wave .keyboard-key {
+  animation: keyboard-rotating-wave var(--effect-speed) ease-in-out infinite;
+  animation-delay: calc(var(--key-angle) * -0.18s);
+}
+
+.keyboard-preview.is-flow .keyboard-key {
+  animation: keyboard-flow var(--effect-speed) linear infinite;
+  animation-delay: calc(var(--key-x) * -0.065s);
+}
+
+.keyboard-preview.is-layered-wave .keyboard-key {
+  animation: keyboard-layered-wave var(--effect-speed) ease-in-out infinite alternate;
+  animation-delay: calc((var(--key-x) + var(--key-y) * 2) * -0.045s);
+}
+
+.keyboard-preview.is-diagonal-rain .keyboard-key {
+  animation: keyboard-diagonal-rain var(--effect-speed) ease-in infinite;
+  animation-delay: calc((var(--key-x) + var(--key-y) * 2.5) * -0.04s);
+}
+
+.keyboard-preview.is-shuttle .keyboard-key {
+  animation: keyboard-shuttle var(--effect-speed) ease-in-out infinite alternate;
+  animation-delay: calc(var(--key-x) * -0.07s);
 }
 
 .keyboard-preview .keyboard-key.is-light-blocked {
@@ -1832,61 +1897,36 @@ select {
   filter: none;
 }
 
-.keyboard-preview.is-breath .keyboard-key {
-  animation: keyboard-breathe var(--effect-speed) ease-in-out infinite alternate;
-}
-
-.keyboard-preview.is-rolling-wave .keyboard-key,
-.keyboard-preview.is-flow .keyboard-key,
-.keyboard-preview.is-shuttle .keyboard-key {
-  animation: keyboard-wave var(--effect-speed) ease-in-out infinite;
-  animation-delay: calc(var(--key-index) * -0.08s);
-}
-
-.keyboard-preview.is-snow .keyboard-key,
-.keyboard-preview.is-diagonal-rain .keyboard-key {
-  animation: keyboard-wave var(--effect-speed) ease-in-out infinite;
-  animation-delay: calc((var(--row-index) * -0.16s) + (var(--key-index) * -0.025s));
-}
-
-.keyboard-preview.is-fountain .keyboard-key,
-.keyboard-preview.is-rotating-wave .keyboard-key,
-.keyboard-preview.is-burst .keyboard-key,
-.keyboard-preview.is-ripple .keyboard-key {
-  animation: keyboard-wave var(--effect-speed) ease-out infinite;
-  animation-delay: calc(var(--distance) * -0.08s);
-}
-
-.keyboard-preview.is-twinkle .keyboard-key {
-  animation: keyboard-glitter var(--effect-speed) steps(2, jump-none) infinite;
-  animation-delay: calc((var(--key-index) + var(--row-index)) * -0.11s);
-}
-
 .keyboard-preview.is-reactive-on.has-preview-trigger .keyboard-key,
 .keyboard-preview.is-reactive-off.has-preview-trigger .keyboard-key {
   filter: brightness(0.25);
 }
 
-.keyboard-preview.is-reactive-on .keyboard-key.is-preview-origin,
-.keyboard-preview.is-reactive-off .keyboard-key.is-preview-origin {
-  animation: keyboard-reactive var(--effect-speed) ease-out 1;
+.keyboard-preview.is-reactive-on .keyboard-key.is-preview-origin {
+  animation: keyboard-reactive-on var(--effect-speed) ease-out 1;
 }
 
-.keyboard-preview.is-burst.has-preview-trigger .keyboard-key,
-.keyboard-preview.is-ripple.has-preview-trigger .keyboard-key,
-.keyboard-preview.is-dual-trail.has-preview-trigger .keyboard-key {
-  animation: keyboard-reactive var(--effect-speed) ease-out 1;
+.keyboard-preview.is-reactive-off .keyboard-key:not(.is-preview-origin) {
+  filter: brightness(1.25);
+}
+
+.keyboard-preview.is-reactive-off .keyboard-key.is-preview-origin {
+  animation: keyboard-reactive-off var(--effect-speed) ease-out 1;
+}
+
+.keyboard-preview.is-burst.has-preview-trigger .keyboard-key {
+  animation: keyboard-burst var(--effect-speed) ease-out 1;
   animation-delay: calc(var(--trigger-distance) * 0.045s);
 }
 
-.keyboard-preview.is-cross-wave .keyboard-key {
-  animation: keyboard-wave var(--effect-speed) ease-in-out infinite;
-  animation-delay: calc((var(--row-index) * -0.18s) + (var(--key-index) * -0.02s));
+.keyboard-preview.is-dual-trail.has-preview-trigger .keyboard-key {
+  animation: keyboard-dual-trail var(--effect-speed) ease-out 1;
+  animation-delay: calc(var(--trigger-x-distance) * 0.045s);
 }
 
-.keyboard-preview.is-layered-wave .keyboard-key {
-  animation: keyboard-breathe var(--effect-speed) ease-in-out infinite alternate;
-  animation-delay: calc((var(--row-index) + var(--key-index)) * -0.055s);
+.keyboard-preview.is-ripple.has-preview-trigger .keyboard-key {
+  animation: keyboard-ripple var(--effect-speed) ease-out 1;
+  animation-delay: calc(var(--trigger-distance) * 0.065s);
 }
 
 .keyboard-preview.is-reversed .keyboard-key {
@@ -2017,43 +2057,34 @@ select {
   text-align: center;
 }
 
-@keyframes keyboard-rainbow {
+@keyframes keyboard-static-palette {
   to {
     filter: hue-rotate(360deg);
   }
 }
 
-@keyframes keyboard-breathe {
-  to {
+@keyframes keyboard-twinkle {
+  0%,
+  72% {
+    filter: brightness(0.22);
+  }
+  76%,
+  82% {
+    filter: brightness(2);
+  }
+  86%,
+  100% {
     filter: brightness(0.35);
   }
 }
 
-@keyframes keyboard-wave {
+@keyframes keyboard-snow {
   0%,
-  100% {
-    filter: brightness(0.28);
+  18% {
+    filter: brightness(0.2);
   }
-  45%,
-  60% {
-    filter: brightness(1.65);
-  }
-}
-
-@keyframes keyboard-glitter {
-  0%,
-  75% {
-    filter: brightness(0.35);
-  }
-  80%,
-  100% {
-    filter: brightness(1.9);
-  }
-}
-
-@keyframes keyboard-reactive {
-  0% {
-    filter: brightness(1.8);
+  42% {
+    filter: brightness(1.75);
   }
   70%,
   100% {
@@ -2061,9 +2092,181 @@ select {
   }
 }
 
+@keyframes keyboard-bloom {
+  0%,
+  100% {
+    filter: brightness(0.3) hue-rotate(0deg);
+  }
+  50% {
+    filter: brightness(1.7) hue-rotate(180deg);
+  }
+}
+
+@keyframes keyboard-breath {
+  to {
+    filter: brightness(0.35);
+  }
+}
+
+@keyframes keyboard-spectrum {
+  to {
+    filter: hue-rotate(360deg) brightness(1.2);
+  }
+}
+
+@keyframes keyboard-fountain {
+  0%,
+  100% {
+    filter: brightness(0.2);
+  }
+  38%,
+  55% {
+    filter: brightness(1.8);
+  }
+}
+
+@keyframes keyboard-cross-wave {
+  0%,
+  100% {
+    filter: brightness(0.25);
+  }
+  45%,
+  58% {
+    filter: brightness(1.7);
+  }
+}
+
+@keyframes keyboard-rolling-wave {
+  0%,
+  100% {
+    filter: brightness(0.18);
+  }
+  35%,
+  55% {
+    filter: brightness(1.85);
+  }
+}
+
+@keyframes keyboard-rotating-wave {
+  0%,
+  100% {
+    filter: brightness(0.2);
+  }
+  46%,
+  62% {
+    filter: brightness(1.75);
+  }
+}
+
+@keyframes keyboard-flow {
+  0%,
+  100% {
+    filter: brightness(0.32);
+  }
+  25% {
+    filter: brightness(1.55);
+  }
+  55% {
+    filter: brightness(0.55);
+  }
+}
+
+@keyframes keyboard-layered-wave {
+  0% {
+    filter: brightness(0.25);
+  }
+  45% {
+    filter: brightness(1.55);
+  }
+  70% {
+    filter: brightness(0.5);
+  }
+  100% {
+    filter: brightness(1.2);
+  }
+}
+
+@keyframes keyboard-diagonal-rain {
+  0%,
+  15% {
+    filter: brightness(0.2);
+  }
+  34%,
+  48% {
+    filter: brightness(1.8);
+  }
+  78%,
+  100% {
+    filter: brightness(0.3);
+  }
+}
+
+@keyframes keyboard-shuttle {
+  0%,
+  100% {
+    filter: brightness(0.22);
+  }
+  48%,
+  56% {
+    filter: brightness(1.9);
+  }
+}
+
+@keyframes keyboard-reactive-on {
+  0% {
+    filter: brightness(2);
+  }
+  70%,
+  100% {
+    filter: brightness(0.25);
+  }
+}
+
+@keyframes keyboard-reactive-off {
+  0% {
+    filter: brightness(0.1);
+  }
+  100% {
+    filter: brightness(1.25);
+  }
+}
+
+@keyframes keyboard-burst {
+  0% {
+    filter: brightness(2);
+  }
+  60%,
+  100% {
+    filter: brightness(0.2);
+  }
+}
+
+@keyframes keyboard-dual-trail {
+  0% {
+    filter: brightness(1.85);
+  }
+  72%,
+  100% {
+    filter: brightness(0.22);
+  }
+}
+
+@keyframes keyboard-ripple {
+  0%,
+  18% {
+    filter: brightness(2);
+  }
+  65%,
+  100% {
+    filter: brightness(0.2);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .keyboard-preview .keyboard-key {
+  /* Repeated class raises specificity above every effect/trigger selector. */
+  .keyboard-preview.keyboard-preview.keyboard-preview.keyboard-preview .keyboard-key {
     animation: none;
+    filter: brightness(0.85);
   }
 }
 
@@ -2331,8 +2534,7 @@ body {
   min-height: 100vh;
   background:
     radial-gradient(circle at 78% -5%, rgba(64, 156, 255, 0.13), transparent 27rem),
-    radial-gradient(circle at 5% 35%, rgba(191, 90, 242, 0.06), transparent 30rem),
-    var(--bg);
+    radial-gradient(circle at 5% 35%, rgba(191, 90, 242, 0.06), transparent 30rem), var(--bg);
   background-attachment: fixed;
 }
 
@@ -2352,8 +2554,12 @@ button {
   color: var(--text);
   font-weight: 590;
   touch-action: manipulation;
-  transition: background-color 180ms ease, color 180ms ease, opacity 180ms ease,
-    transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 220ms ease;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    opacity 180ms ease,
+    transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 220ms ease;
 }
 
 button:hover:not(:disabled):not(.keyboard-key) {
@@ -2395,7 +2601,9 @@ textarea:focus-visible,
   border: 1px solid rgba(255, 255, 255, 0.72);
   border-radius: 22px;
   background: rgba(248, 248, 250, 0.72);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 36px rgba(0, 0, 0, 0.07);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 12px 36px rgba(0, 0, 0, 0.07);
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
 }
@@ -2417,7 +2625,9 @@ textarea:focus-visible,
   border: 0;
   border-radius: 13px;
   background: linear-gradient(145deg, #1689f8, #0064cf);
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.35), 0 6px 14px rgba(0, 113, 227, 0.24);
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.35),
+    0 6px 14px rgba(0, 113, 227, 0.24);
 }
 
 .brand-mark svg {
@@ -2482,7 +2692,9 @@ textarea:focus-visible,
   border: 1px solid rgba(255, 255, 255, 0.75);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.56);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 14px 38px rgba(0, 0, 0, 0.055);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.03),
+    0 14px 38px rgba(0, 0, 0, 0.055);
   backdrop-filter: blur(22px) saturate(180%);
   -webkit-backdrop-filter: blur(22px) saturate(180%);
 }
@@ -2503,7 +2715,9 @@ textarea:focus-visible,
 .workspace-nav button.is-active {
   border: 0;
   background: #fff;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 5px 16px rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.06),
+    0 5px 16px rgba(0, 0, 0, 0.08);
   color: var(--text);
 }
 
@@ -2780,7 +2994,9 @@ input[type="range"] {
   border-color: rgba(255, 255, 255, 0.5);
   border-radius: 10px;
   background: linear-gradient(135deg, #ff6961, #ff375f);
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.35), 0 5px 12px rgba(255, 55, 95, 0.2);
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.35),
+    0 5px 12px rgba(255, 55, 95, 0.2);
 }
 
 .effect-glyph.is-off {
@@ -2865,7 +3081,9 @@ input[type="range"] {
 }
 
 .color-presets button.is-active {
-  box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent);
+  box-shadow:
+    0 0 0 2px #fff,
+    0 0 0 4px var(--accent);
 }
 
 .keyboard-context {
@@ -2876,7 +3094,9 @@ input[type="range"] {
   border: 1px solid rgba(0, 0, 0, 0.76);
   border-radius: 12px;
   background: linear-gradient(100deg, #222326, #4b4c50 48%, #202124);
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.26), inset 0 -3px #0c0c0d,
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.26),
+    inset 0 -3px #0c0c0d,
     0 14px 28px rgba(0, 0, 0, 0.18);
 }
 
@@ -2965,7 +3185,8 @@ input[type="range"] {
   }
 
   body {
-    background: radial-gradient(circle at 78% -5%, rgba(10, 132, 255, 0.15), transparent 28rem),
+    background:
+      radial-gradient(circle at 78% -5%, rgba(10, 132, 255, 0.15), transparent 28rem),
       radial-gradient(circle at 5% 35%, rgba(191, 90, 242, 0.08), transparent 30rem), var(--bg);
   }
 
@@ -3048,7 +3269,9 @@ input[type="range"] {
   }
 
   .color-presets button.is-active {
-    box-shadow: 0 0 0 2px #1c1c1e, 0 0 0 4px #0a84ff;
+    box-shadow:
+      0 0 0 2px #1c1c1e,
+      0 0 0 4px #0a84ff;
   }
 
   .risk-notice {
@@ -3088,7 +3311,9 @@ input[type="range"] {
   }
 
   .workspace-nav button.is-active {
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 5px 14px rgba(0, 0, 0, 0.08);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.06),
+      0 5px 14px rgba(0, 0, 0, 0.08);
   }
 }
 
@@ -3290,7 +3515,9 @@ input[type="range"] {
   button,
   .file-control,
   .effect-picker summary {
-    transition: opacity 120ms ease, background-color 120ms ease;
+    transition:
+      opacity 120ms ease,
+      background-color 120ms ease;
   }
 
   button:active:not(:disabled):not(.keyboard-key),
@@ -3302,8 +3529,12 @@ input[type="range"] {
 }
 
 @keyframes reduced-materialize {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @media (prefers-reduced-transparency: reduce) {
@@ -3372,7 +3603,12 @@ input[type="range"] {
   --shadow-card: 0 1px 2px rgb(0 0 0 / 4%), 0 12px 32px rgb(0 0 0 / 6%);
 
   color-scheme: light dark;
-  font: 400 100%/1.45 system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+  font:
+    400 100% / 1.45 system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Text",
+    sans-serif;
 }
 
 html,
@@ -3394,7 +3630,10 @@ button {
   color: var(--label-primary);
   font-size: 0.875rem;
   font-weight: 580;
-  transition: background-color 120ms ease, border-color 120ms ease, opacity 120ms ease,
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    opacity 120ms ease,
     transform 80ms ease;
 }
 
@@ -3437,7 +3676,9 @@ textarea:focus-visible,
   border: 1px solid color-mix(in srgb, var(--separator) 70%, transparent);
   border-radius: var(--radius-pane);
   background: var(--bg-functional);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 5%), 0 10px 28px rgb(0 0 0 / 7%);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 5%),
+    0 10px 28px rgb(0 0 0 / 7%);
   backdrop-filter: blur(20px) saturate(150%);
   -webkit-backdrop-filter: blur(20px) saturate(150%);
 }
@@ -3499,7 +3740,9 @@ textarea:focus-visible,
   border: 1px solid color-mix(in srgb, var(--separator) 70%, transparent);
   border-radius: var(--radius-group);
   background: var(--bg-functional);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 4%), 0 8px 24px rgb(0 0 0 / 5%);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 4%),
+    0 8px 24px rgb(0 0 0 / 5%);
   backdrop-filter: blur(20px) saturate(150%);
   -webkit-backdrop-filter: blur(20px) saturate(150%);
 }
@@ -4348,8 +4591,7 @@ body,
 
 body {
   background:
-    radial-gradient(circle at 50% 24rem, rgb(36 72 112 / 16%), transparent 32rem),
-    var(--stage);
+    radial-gradient(circle at 50% 24rem, rgb(36 72 112 / 16%), transparent 32rem), var(--stage);
 }
 
 .app {

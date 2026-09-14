@@ -113,7 +113,7 @@ export function LightingPanel() {
       <p className="keyboard-context">
         {editingMode === "effects" ? (
           <>
-            Color and brightness preview only · effect motion is shown on the physical keyboard ·
+            Provisional effect simulation · calibration against keyboard recordings is pending ·
             changes are sent only when you apply them.
             <span className="mobile-pan-hint"> Swipe sideways to inspect every key.</span>
           </>
@@ -311,7 +311,7 @@ function EffectPicker({
       <legend>Effect</legend>
       <details className="effect-picker" ref={picker}>
         <summary aria-label="Lighting effect">
-          <EffectGlyph preview={selected.preview} />
+          <EffectGlyph animationId={selected.animation.id} />
           <span>
             <strong>{selected.displayName}</strong>
             <small>{selected.description}</small>
@@ -336,7 +336,7 @@ function EffectPicker({
               }}
               key={effect.protocolId}
             >
-              <EffectGlyph preview={effect.preview} />
+              <EffectGlyph animationId={effect.animation.id} />
               <span>
                 <strong>{effect.displayName}</strong>
                 <small>{effect.description}</small>
@@ -349,8 +349,12 @@ function EffectPicker({
   );
 }
 
-function EffectGlyph({ preview }: { preview: (typeof LIGHTING_EFFECTS)[number]["preview"] }) {
-  return <span className={`effect-glyph is-${preview}`} aria-hidden="true" />;
+function EffectGlyph({
+  animationId,
+}: {
+  animationId: (typeof LIGHTING_EFFECTS)[number]["animation"]["id"];
+}) {
+  return <span className={`effect-glyph is-${animationId}`} aria-hidden="true" />;
 }
 
 function LevelSelect({

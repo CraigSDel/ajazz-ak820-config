@@ -112,9 +112,12 @@ The Lighting workspace contains normal effect and per-key controls. Hardware
 validation lives in the separate Testing workspace, which can be hidden with
 `VITE_SHOW_HARDWARE_TESTING=false`.
 
-The virtual keyboard is an approximate rendering selected by each effect's
-presentation metadata; it is not a protocol simulation. The Testing workspace stores
-manual observations locally, applies the next untested effect automatically,
+The virtual keyboard uses a distinct, data-driven simulation profile for every
+effect. Profiles describe spatial motion, palette ownership, brightness envelope,
+five speed durations, direction, and reactive propagation. They are deliberately
+marked provisional until calibrated against fixed-camera recordings of the
+physical `0x8009` keyboard; they do not alter protocol IDs or packets. The Testing
+workspace stores manual observations locally, applies the next untested effect automatically,
 can reapply the selected effect, and exports a text report. Reapplication counts
 are persisted per effect and included in the report. Changing the preset
 transport increments the storage version so results from incompatible
@@ -137,6 +140,9 @@ implementations are not mixed.
   sweep on 2026-07-27.
 - Record detailed motion and palette observations where the approximate preview
   still needs confirmation.
+- Record fixed-camera video at speed levels 1, 3, and 5, every available direction,
+  single and multicolor palettes, and several key presses for reactive modes. Use
+  those recordings to set profile timing and motion before marking one calibrated.
 - Confirm Up/Down direction and mode 19's visible behavior.
 - Confirm persistence across reconnect and power cycle.
 - Confirm sleep timing and wake behavior.
