@@ -179,6 +179,7 @@ src/
 Further documentation:
 
 - [Feature status and research backlog](docs/features.md)
+- [Research, responsive contract, and RGB verification gates](docs/research-and-quality.md)
 - [Protocol notes](docs/protocol-notes.md)
 - [Physical hardware test plan](docs/manual-test.md)
 - [Reverse-engineering notes and lessons](docs/learnings/README.md)

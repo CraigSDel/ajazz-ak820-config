@@ -115,6 +115,7 @@ export function LightingPanel() {
           <>
             Color and brightness preview only · effect motion is shown on the physical keyboard ·
             changes are sent only when you apply them.
+            <span className="mobile-pan-hint"> Swipe sideways to inspect every key.</span>
           </>
         ) : (
           <>

@@ -31,6 +31,13 @@ Chromium browser. It remains local-only and communicates through WebHID.
 - Verify the captured per-key RGB mapping on the ANSI layout.
 - Confirm custom RGB persistence and safe write frequency.
 
+An independent firmware-1.07 investigation has documented a second, official-
+driver-style output-report protocol for lighting and persistent per-key RGB.
+It is not yet enabled here because it conflicts with the feature-report path
+already verified on this project's target. See
+[`research-and-quality.md`](research-and-quality.md#rgb-protocol-status) for the
+evidence, compatibility risk, and hardware gate required before integration.
+
 Use [`manual-test.md`](manual-test.md) for the procedure. Record protocol-level
 findings in [`learnings/`](learnings/README.md), not in this status page.
 
