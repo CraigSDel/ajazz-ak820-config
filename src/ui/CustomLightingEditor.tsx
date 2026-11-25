@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { useDeviceSession } from "../device/DeviceSession";
-import { applyCustomLighting, canUseCustomLighting } from "../lighting/custom";
 import { hexToRgb } from "../lighting/color";
+import { applyCustomLighting } from "../lighting/custom";
 import { CUSTOM_LED_COUNT } from "../protocol/constants";
 import type { RGBColor } from "../protocol/lighting";
-import { LightingKeyboard } from "./LightingKeyboard";
+import { errorMessage } from "./text";
 
 const BLACK: RGBColor = { red: 0, green: 0, blue: 0 };
 // The firmware falls back to its saved preset shortly after the last custom
@@ -13,7 +13,7 @@ const CUSTOM_REFRESH_INTERVAL_MS = 100;
 const emptyColors = () => Array.from({ length: CUSTOM_LED_COUNT }, () => ({ ...BLACK }));
 
 export function useCustomLightingEditor(active = true) {
-  const { controller, connected, activeOperation, runOperation } = useDeviceSession();
+  const { connected, activeOperation, runOperation } = useDeviceSession();
   const [colors, setColors] = useState<RGBColor[]>(emptyColors);
   const [paintColor, setPaintColor] = useState("#ff0000");
   const [status, setStatus] = useState<string | null>(null);
@@ -21,7 +21,7 @@ export function useCustomLightingEditor(active = true) {
   const colorsRef = useRef(colors);
   const lastTransferStartedAt = useRef<number | null>(null);
   colorsRef.current = colors;
-  const available = connected && canUseCustomLighting(controller);
+  const available = connected;
   const busy = activeOperation !== null;
   // Stopping only cancels the local refresh loop, so it remains safe while
   // the current custom RGB transfer holds the shared device-operation lock.
@@ -41,22 +41,23 @@ export function useCustomLightingEditor(active = true) {
       const startedAt = performance.now();
       lastTransferStartedAt.current = startedAt;
       try {
-        await runOperation("custom RGB", (operationController) =>
-          applyCustomLighting(operationController, colorsRef.current),
+        await runOperation(
+          "custom RGB",
+          (operationController) => applyCustomLighting(operationController, colorsRef.current),
+          // Streaming holds the device lock without re-rendering the whole
+          // app ten times a second; the Stop button reflects `streaming`.
+          { background: true },
         );
       } catch (error) {
         if (!cancelled) {
           setStreaming(false);
-          setStatus(message(error));
+          setStatus(errorMessage(error, "Custom RGB operation failed."));
         }
         return;
       }
 
       if (cancelled) return;
-      const remaining = Math.max(
-        0,
-        CUSTOM_REFRESH_INTERVAL_MS - (performance.now() - startedAt),
-      );
+      const remaining = Math.max(0, CUSTOM_REFRESH_INTERVAL_MS - (performance.now() - startedAt));
       timer = window.setTimeout(pump, remaining);
     };
 
@@ -68,10 +69,10 @@ export function useCustomLightingEditor(active = true) {
     };
   }, [active, available, runOperation, streaming]);
 
-  const paint = (ledIds: readonly number[], color = hexToRgb(paintColor)) => {
+  const paint = (keyIds: readonly number[], color = hexToRgb(paintColor)) => {
     setColors((current) => {
       const next = current.map((value) => ({ ...value }));
-      for (const ledId of ledIds) next[ledId] = { ...color };
+      for (const keyId of keyIds) next[keyId] = { ...color };
       return next;
     });
   };
@@ -86,7 +87,7 @@ export function useCustomLightingEditor(active = true) {
       setStreaming(true);
       setStatus("Live custom RGB active. Keep the Per-key panel open.");
     } catch (error) {
-      setStatus(message(error));
+      setStatus(errorMessage(error, "Custom RGB operation failed."));
     }
   };
 
@@ -104,8 +105,9 @@ export function useCustomLightingEditor(active = true) {
       </div>
 
       <p className="effect-behavior" role="note">
-        The keyboard does not store custom per-key layouts. Keep this panel open to stream your
-        colors; stopping live RGB or leaving Per-key restores the keyboard&apos;s saved preset.
+        The keyboard does not store custom per-key layouts, so this page streams your colors while
+        Per-key is open and this tab is in front. Browsers slow background tabs, so the keyboard
+        returns to its saved effect if you switch away, stop live RGB or leave Per-key.
       </p>
 
       <div className="custom-simple-tools">
@@ -116,7 +118,7 @@ export function useCustomLightingEditor(active = true) {
               aria-label="Custom paint color"
               type="color"
               value={paintColor}
-              onChange={(event) => setPaintColor(event.target.value)}
+              onInput={(event) => setPaintColor(event.currentTarget.value)}
             />
             <strong>{paintColor.toUpperCase()}</strong>
           </span>
@@ -161,23 +163,9 @@ export function useCustomLightingEditor(active = true) {
   return {
     keyboard: {
       colors,
-      onKey: (ledId: number) => paint([ledId]),
-      onPaintKey: (ledId: number) => paint([ledId]),
+      onKey: (keyId: number) => paint([keyId]),
+      onPaintKey: (keyId: number) => paint([keyId]),
     },
     controls,
   };
-}
-
-export function CustomLightingEditor() {
-  const editor = useCustomLightingEditor();
-  return (
-    <>
-      <LightingKeyboard mode="per-key" {...editor.keyboard} />
-      {editor.controls}
-    </>
-  );
-}
-
-function message(error: unknown): string {
-  return error instanceof Error ? error.message : "Custom RGB operation failed.";
 }

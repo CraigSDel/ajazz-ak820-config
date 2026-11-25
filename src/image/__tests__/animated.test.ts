@@ -1,14 +1,8 @@
-import { describe, expect, test } from "vitest";
 import { createCanvas } from "canvas";
 import GIFEncoder from "gif-encoder-2";
-import {
-  inspectWebP,
-  isAnimatedWebP,
-  processAnimatedImage,
-  rasterizeGifFrames,
-  type DecodedGifFrame,
-} from "../animated";
+import { describe, expect, test } from "vitest";
 import { RGB565_FRAME_BYTES } from "../../protocol/constants";
+import { inspectWebP, isAnimatedWebP, processAnimatedImage } from "../animated";
 
 function makeThreeFrameGif(): Uint8Array {
   const width = 200;
@@ -131,12 +125,13 @@ describe("processAnimatedImage", () => {
     await expect(processAnimatedImage(file)).rejects.toThrow(/too large/i);
   });
 
-  test("decodes every animated WebP frame and converts microsecond durations", async () => {
+  test("decodes every animated frame, converts microsecond durations, and defaults tiny delays", async () => {
     const webpBytes = makeWebPContainer(true, 2);
     const file = new File([webpBytes], "rgb.webp", { type: "image/webp" });
     const originalDecoder = (globalThis as unknown as { ImageDecoder?: unknown }).ImageDecoder;
 
     class FakeImageDecoder {
+      completed = Promise.resolve();
       tracks = { ready: Promise.resolve(), selectedTrack: { frameCount: 2 } };
       async decode({ frameIndex }: { frameIndex: number }) {
         const canvas = createCanvas(2, 2);
@@ -147,7 +142,8 @@ describe("processAnimatedImage", () => {
           image: Object.assign(canvas, {
             displayWidth: 2,
             displayHeight: 2,
-            duration: frameIndex === 0 ? 50_000 : 120_000,
+            // Microseconds; 0 is how decoders report a missing GIF delay.
+            duration: frameIndex === 0 ? 0 : 120_000,
             close() {},
           }),
         };
@@ -167,7 +163,7 @@ describe("processAnimatedImage", () => {
       const centerOffset = (128 * 64 + 64) * 2;
       expect((out.frames[0][centerOffset + 1] << 8) | out.frames[0][centerOffset]).toBe(0xf800);
       expect((out.frames[1][centerOffset + 1] << 8) | out.frames[1][centerOffset]).toBe(0x001f);
-      expect(out.delaysMs).toEqual([50, 120]);
+      expect(out.delaysMs).toEqual([100, 120]);
     } finally {
       Object.defineProperty(globalThis, "ImageDecoder", {
         configurable: true,
@@ -176,7 +172,7 @@ describe("processAnimatedImage", () => {
     }
   });
 
-  test("reports a clear error when animated WebP decoding is unavailable", async () => {
+  test("reports a clear error when animated decoding is unavailable", async () => {
     const file = new File([makeWebPContainer(true, 1)], "animated.webp", {
       type: "image/webp",
     });
@@ -184,6 +180,8 @@ describe("processAnimatedImage", () => {
     Object.defineProperty(globalThis, "ImageDecoder", { configurable: true, value: undefined });
     try {
       await expect(processAnimatedImage(file)).rejects.toThrow(/WebCodecs ImageDecoder/i);
+      const gif = new File([makeThreeFrameGif()], "rgb.gif", { type: "image/gif" });
+      await expect(processAnimatedImage(gif)).rejects.toThrow(/WebCodecs ImageDecoder/i);
     } finally {
       Object.defineProperty(globalThis, "ImageDecoder", {
         configurable: true,
@@ -196,7 +194,9 @@ describe("processAnimatedImage", () => {
     const file = new File([makeWebPContainer(true, 256)], "too-many.webp", {
       type: "image/webp",
     });
-    await expect(processAnimatedImage(file)).rejects.toThrow(/256 frames exceed max 255/i);
+    await expect(processAnimatedImage(file)).rejects.toThrow(
+      /256 frames; the keyboard supports at most 255/i,
+    );
   });
 });
 
@@ -216,178 +216,50 @@ describe("WebP container inspection", () => {
   });
 
   test("rejects invalid and truncated WebP containers", () => {
-    expect(() => inspectWebP(new ArrayBuffer(12))).toThrow(/invalid WebP/i);
+    expect(() => inspectWebP(new ArrayBuffer(12))).toThrow(/valid WebP/i);
 
     const truncated = makeWebPContainer(true, 1);
     const truncatedView = truncated.slice(0, truncated.length - 1);
-    expect(() => inspectWebP(truncatedView.buffer)).toThrow(/truncated WebP/i);
+    expect(() => inspectWebP(truncatedView.buffer)).toThrow(/truncated/i);
   });
 });
 
-describe("rasterizeGifFrames", () => {
-  // gifuct-js stores transparent pixels in `patch` with alpha=0 and RGB equal
-  // to colorTable[transparentIndex] — *not* zero. A naïve 4-byte copy
-  // overwrites the previous frame's RGB with that placeholder color; the
-  // result on a keyboard with no alpha channel is bright blocky artifacts
-  // exactly where the previous frame should show through.
-  test("transparent pixels in a patch leave the previous frame untouched", () => {
-    const W = 4;
-    const H = 4;
+describe("GIF header checks", () => {
+  test("rejects files that are not GIFs and oversized canvases before decoding", async () => {
+    const notGif = new File([new Uint8Array(16)], "fake.gif", { type: "image/gif" });
+    await expect(processAnimatedImage(notGif)).rejects.toThrow(/valid GIF/);
 
-    // Frame 0: solid red, fully opaque.
-    const patch0 = new Uint8ClampedArray(W * H * 4);
-    for (let i = 0; i < W * H; i++) {
-      patch0[i * 4] = 255;
-      patch0[i * 4 + 3] = 255;
-    }
-
-    // Frame 1: top half green opaque, bottom half "transparent" — alpha=0
-    // with non-zero RGB to simulate gifuct-js's placeholder behaviour.
-    const patch1 = new Uint8ClampedArray(W * H * 4);
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        const i = (y * W + x) * 4;
-        if (y < H / 2) {
-          patch1[i + 1] = 255; // green
-          patch1[i + 3] = 255;
-        } else {
-          patch1[i] = 123; // bogus RGB at the transparent index
-          patch1[i + 2] = 200;
-          patch1[i + 3] = 0;
-        }
-      }
-    }
-
-    const decoded: DecodedGifFrame[] = [
-      {
-        dims: { left: 0, top: 0, width: W, height: H },
-        patch: patch0,
-        disposalType: 0,
-        delay: 100,
-      },
-      {
-        dims: { left: 0, top: 0, width: W, height: H },
-        patch: patch1,
-        disposalType: 0,
-        delay: 100,
-        transparentIndex: 5,
-      },
-    ];
-
-    const out = Array.from(rasterizeGifFrames(decoded, W, H, [0, 0, 0, 0]));
-    const f1 = out[1].rgba;
-
-    // Bottom-left pixel of frame 1 should retain frame 0's red, not the
-    // (123, 0, 200) garbage from the transparent placeholder.
-    const idx = (3 * W + 0) * 4;
-    expect(f1[idx]).toBe(255);
-    expect(f1[idx + 1]).toBe(0);
-    expect(f1[idx + 2]).toBe(0);
+    const huge = new Uint8Array(16);
+    huge.set([...new TextEncoder().encode("GIF89a"), 0x00, 0x10, 0x10, 0x00]);
+    const oversized = new File([huge], "huge.gif", { type: "image/gif" });
+    await expect(processAnimatedImage(oversized)).rejects.toThrow(/4096 × 16 px/);
   });
+});
 
-  // Disposal method 2 ("restore to background") is what GIFs with movement
-  // use to erase the prior frame's pixels before the next frame is drawn.
-  // Without it, moving sprites leave trails — the "torn animation" symptom.
-  test("disposal=2 clears the prev frame's dims to background before next frame", () => {
-    const W = 4;
-    const H = 4;
-
-    const opaqueRed = new Uint8ClampedArray(2 * 2 * 4);
-    for (let i = 0; i < 4; i++) {
-      opaqueRed[i * 4] = 255;
-      opaqueRed[i * 4 + 3] = 255;
+describe("animation consistency", () => {
+  test("keeps one letterbox colour for every frame of an animation", async () => {
+    const width = 32;
+    const height = 16;
+    const encoder = new GIFEncoder(width, height);
+    encoder.start();
+    encoder.setDelay(100);
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext("2d");
+    // The dominant colour flips from red to blue between frames.
+    for (const color of ["#ff0000", "#0000ff"]) {
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, width, height);
+      encoder.addFrame(ctx as unknown as CanvasRenderingContext2D);
     }
-    const opaqueGreen = new Uint8ClampedArray(2 * 2 * 4);
-    for (let i = 0; i < 4; i++) {
-      opaqueGreen[i * 4 + 1] = 255;
-      opaqueGreen[i * 4 + 3] = 255;
-    }
+    encoder.finish();
+    const file = new File([new Uint8Array(encoder.out.getData())], "flip.gif", {
+      type: "image/gif",
+    });
 
-    const decoded: DecodedGifFrame[] = [
-      {
-        dims: { left: 0, top: 0, width: 2, height: 2 },
-        patch: opaqueRed,
-        disposalType: 2,
-        delay: 100,
-      },
-      {
-        dims: { left: 2, top: 2, width: 2, height: 2 },
-        patch: opaqueGreen,
-        disposalType: 0,
-        delay: 100,
-      },
-    ];
-
-    const out = Array.from(rasterizeGifFrames(decoded, W, H, [0, 0, 0, 255]));
-    const f1 = out[1].rgba;
-
-    // Top-left of frame 1 should be background (black), not lingering red.
-    const topLeft = 0;
-    expect(f1[topLeft]).toBe(0);
-    expect(f1[topLeft + 1]).toBe(0);
-    expect(f1[topLeft + 2]).toBe(0);
-
-    // Bottom-right should be the newly-drawn green.
-    const bottomRight = (3 * W + 3) * 4;
-    expect(f1[bottomRight + 1]).toBe(255);
-  });
-
-  // Disposal method 3 ("restore to previous") rolls the canvas back to its
-  // state before the current frame. Without handling, animations using
-  // disposal=3 (rare but real) get duplicated overlays.
-  test("disposal=3 restores canvas to the state before that frame was drawn", () => {
-    const W = 4;
-    const H = 4;
-
-    const fullRed = new Uint8ClampedArray(W * H * 4);
-    for (let i = 0; i < W * H; i++) {
-      fullRed[i * 4] = 255;
-      fullRed[i * 4 + 3] = 255;
-    }
-    const opaqueGreen = new Uint8ClampedArray(2 * 2 * 4);
-    for (let i = 0; i < 4; i++) {
-      opaqueGreen[i * 4 + 1] = 255;
-      opaqueGreen[i * 4 + 3] = 255;
-    }
-    const opaqueBlue = new Uint8ClampedArray(2 * 2 * 4);
-    for (let i = 0; i < 4; i++) {
-      opaqueBlue[i * 4 + 2] = 255;
-      opaqueBlue[i * 4 + 3] = 255;
-    }
-
-    const decoded: DecodedGifFrame[] = [
-      {
-        dims: { left: 0, top: 0, width: W, height: H },
-        patch: fullRed,
-        disposalType: 0,
-        delay: 100,
-      },
-      {
-        dims: { left: 0, top: 0, width: 2, height: 2 },
-        patch: opaqueGreen,
-        disposalType: 3,
-        delay: 100,
-      },
-      {
-        dims: { left: 2, top: 2, width: 2, height: 2 },
-        patch: opaqueBlue,
-        disposalType: 0,
-        delay: 100,
-      },
-    ];
-
-    const out = Array.from(rasterizeGifFrames(decoded, W, H, [0, 0, 0, 255]));
-    const f2 = out[2].rgba;
-
-    // Top-left of frame 2 should be RED again (restored), not the green
-    // that was drawn in frame 1.
-    const topLeft = 0;
-    expect(f2[topLeft]).toBe(255);
-    expect(f2[topLeft + 1]).toBe(0);
-    expect(f2[topLeft + 2]).toBe(0);
-
-    // Bottom-right of frame 2 should be the newly-drawn blue.
-    const bottomRight = (3 * W + 3) * 4;
-    expect(f2[bottomRight + 2]).toBe(255);
+    const { frames } = await processAnimatedImage(file);
+    const topLeft = (frame: Uint8Array) => frame[0] | (frame[1] << 8);
+    // 32×16 contains into 128×64, leaving 32 rows of padding above.
+    expect(topLeft(frames[0])).toBe(0xf800);
+    expect(topLeft(frames[1])).toBe(topLeft(frames[0]));
   });
 });

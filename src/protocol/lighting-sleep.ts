@@ -1,5 +1,4 @@
-import { CONTROL_REPORT_LEAD_BYTE, PACKET_LENGTH } from "./constants";
-import type { ReportMessage } from "./types";
+import { Command, commandPacket, dataPacket, type Packet } from "./packet";
 
 export const LightingSleepTime = {
   Never: 0,
@@ -10,29 +9,18 @@ export const LightingSleepTime = {
 
 export type LightingSleepTime = (typeof LightingSleepTime)[keyof typeof LightingSleepTime];
 
-const CMD_SLEEP = 0x17;
-const PAYLOAD_LENGTH = PACKET_LENGTH - 1;
-
-export function buildLightingSleepPreambleReport(): ReportMessage {
-  const bytes = new Uint8Array(PAYLOAD_LENGTH);
-  bytes[0] = CMD_SLEEP;
-  bytes[1] = 0x01;
-  bytes[7] = 0x01;
-  return { reportId: CONTROL_REPORT_LEAD_BYTE, bytes };
-}
-
-export function buildLightingSleepDataReport(sleepTime: LightingSleepTime): ReportMessage {
+/** START → SLEEP (sub 1) → SLEEP_DATA; no SAVE or FINISH. */
+export function buildLightingSleepPackets(sleepTime: LightingSleepTime): Packet[] {
   if (
     !Number.isInteger(sleepTime) ||
     sleepTime < LightingSleepTime.Never ||
     sleepTime > LightingSleepTime.ThirtyMinutes
   ) {
-    throw new Error(`buildLightingSleepDataReport: invalid sleep time ${sleepTime}`);
+    throw new Error(`buildLightingSleepPackets: invalid sleep time ${sleepTime}`);
   }
-
-  const bytes = new Uint8Array(PAYLOAD_LENGTH);
-  bytes[7] = sleepTime;
-  bytes[61] = 0xaa;
-  bytes[62] = 0x55;
-  return { reportId: 0x00, bytes };
+  return [
+    commandPacket(Command.Start, { flag: 1 }),
+    commandPacket(Command.Sleep, { sub: 1, flag: 1 }),
+    dataPacket({ 8: sleepTime }),
+  ];
 }

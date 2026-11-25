@@ -1,16 +1,32 @@
-import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
-// biome-ignore lint/correctness/noUnusedImports: required by this test file's classic JSX transform
-import React from "react";
+import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/preact";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { DeviceSessionProvider } from "../../device/DeviceSession";
 import { MockDeviceController } from "../../device/mock-controller";
-import { CustomLightingEditor } from "../CustomLightingEditor";
+import { useCustomLightingEditor } from "../CustomLightingEditor";
+import { LightingKeyboard } from "../LightingKeyboard";
+
+function CustomLightingEditor() {
+  const editor = useCustomLightingEditor();
+  return (
+    <>
+      <LightingKeyboard mode="per-key" {...editor.keyboard} />
+      {editor.controls}
+    </>
+  );
+}
 
 afterEach(() => {
   vi.useRealTimers();
   cleanup();
   localStorage.clear();
 });
+
+/** Let the async apply chain (≈20 awaited transfers) finish under fake timers. */
+async function settle() {
+  await act(async () => {
+    for (let i = 0; i < 100; i++) await Promise.resolve();
+  });
+}
 
 async function renderEditor() {
   const controller = new MockDeviceController();
@@ -36,26 +52,22 @@ describe("CustomLightingEditor", () => {
 
   test("paints individual keys and supports fill and clear", async () => {
     const view = await renderEditor();
-    const q = view.getByRole("button", { name: "Q, LED 33" });
-    fireEvent.change(view.getByLabelText("Custom paint color"), { target: { value: "#123456" } });
+    const q = view.getByRole("button", { name: "Q" });
+    fireEvent.input(view.getByLabelText("Custom paint color"), { target: { value: "#123456" } });
     fireEvent.click(q);
     expect(q.getAttribute("style")).toContain("#123456");
 
-    fireEvent.change(view.getByLabelText("Custom paint color"), { target: { value: "#00ff00" } });
+    fireEvent.input(view.getByLabelText("Custom paint color"), { target: { value: "#00ff00" } });
     fireEvent.click(view.getByRole("button", { name: "Fill all" }));
-    expect(view.getByRole("button", { name: "W, LED 34" }).getAttribute("style")).toContain(
-      "#00ff00",
-    );
+    expect(view.getByRole("button", { name: "W" }).getAttribute("style")).toContain("#00ff00");
     fireEvent.click(view.getByRole("button", { name: "Clear all" }));
-    expect(view.getByRole("button", { name: "W, LED 34" }).getAttribute("style")).toContain(
-      "#000000",
-    );
+    expect(view.getByRole("button", { name: "W" }).getAttribute("style")).toContain("#000000");
   });
 
   test("uses one tab stop and arrow-key navigation across the keyboard", async () => {
     const view = await renderEditor();
-    const esc = view.getByRole("button", { name: "Esc, LED 0" });
-    const f1 = view.getByRole("button", { name: "F1, LED 1" });
+    const esc = view.getByRole("button", { name: "Esc" });
+    const f1 = view.getByRole("button", { name: "F1" });
     expect(esc.getAttribute("tabindex")).toBe("0");
     expect(f1.getAttribute("tabindex")).toBe("-1");
 
@@ -80,7 +92,7 @@ describe("CustomLightingEditor", () => {
     vi.useFakeTimers();
     const { controller, getByRole } = await renderEditor();
     fireEvent.click(getByRole("button", { name: "Apply custom RGB" }));
-    await act(async () => Promise.resolve());
+    await settle();
     expect(controller.sent).toHaveLength(10);
 
     await act(async () => vi.advanceTimersByTimeAsync(100));
@@ -103,7 +115,7 @@ describe("CustomLightingEditor", () => {
     });
 
     fireEvent.click(getByRole("button", { name: "Apply custom RGB" }));
-    await act(async () => Promise.resolve());
+    await settle();
     expect(controller.sent).toHaveLength(10);
 
     await act(async () => {

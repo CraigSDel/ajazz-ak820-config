@@ -1,5 +1,10 @@
-import { type CSSProperties, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "preact";
+import { useRef, useState } from "preact/hooks";
 import { useDeviceSession } from "../device/DeviceSession";
+import { hexToRgb, rgbToHex } from "../lighting/color";
+import { DEFAULT_LIGHTING_CONFIG } from "../lighting/default-config";
+import { configForEffect, effectForMode, LIGHTING_EFFECTS } from "../lighting/effects";
+import { loadSentLighting, rememberSentLighting } from "../lighting/storage";
 import { setLighting, setLightingSleepTime } from "../operations";
 import {
   type LightingConfig,
@@ -8,32 +13,43 @@ import {
   LightingMode,
 } from "../protocol/lighting";
 import { LightingSleepTime, type LightingSleepTime as SleepTime } from "../protocol/lighting-sleep";
-import { effectForMode, LIGHTING_EFFECTS } from "../lighting/effects";
-import { hexToRgb, rgbToHex } from "../lighting/color";
-import { DEFAULT_LIGHTING_CONFIG } from "../lighting/default-config";
 import { useCustomLightingEditor } from "./CustomLightingEditor";
 import { LightingKeyboard, type LightingKeyboardProps } from "./LightingKeyboard";
+import { classNames, errorMessage } from "./text";
 
+type LightingEffect = (typeof LIGHTING_EFFECTS)[number];
+
+// The keyboard's own Fn+→ colour cycle (user manual), as full-saturation LED
+// values. The firmware's exact orange and purple values are unconfirmed.
 const COLOR_PRESETS = [
-  "#ff3b30",
-  "#ff9500",
-  "#ffd60a",
-  "#34c759",
-  "#00c7be",
-  "#0a84ff",
-  "#5e5ce6",
-  "#bf5af2",
-];
+  ["Red", "#ff0000"],
+  ["Orange", "#ff8000"],
+  ["Yellow", "#ffff00"],
+  ["Green", "#00ff00"],
+  ["Cyan", "#00ffff"],
+  ["Blue", "#0000ff"],
+  ["Purple", "#8000ff"],
+  ["White", "#ffffff"],
+] as const;
+
+const EDITING_MODES = [
+  ["effects", "Effects"],
+  ["per-key", "Per-key"],
+] as const;
+type EditingMode = (typeof EDITING_MODES)[number][0];
 
 export function LightingPanel() {
   const { connected, activeOperation, runOperation } = useDeviceSession();
-  const [config, setConfig] = useState<LightingConfig>(DEFAULT_LIGHTING_CONFIG);
-  const [appliedConfig, setAppliedConfig] = useState<LightingConfig | null>(null);
-  const [sleepTime, setSleepTime] = useState<SleepTime>(LightingSleepTime.Never);
+  // The keyboard can't be queried, so start from what this browser last sent.
+  const [lastSent] = useState(loadSentLighting);
+  const [config, setConfig] = useState<LightingConfig>(() =>
+    configForEffect(lastSent.config ?? DEFAULT_LIGHTING_CONFIG),
+  );
+  const [appliedConfig, setAppliedConfig] = useState<LightingConfig | null>(
+    lastSent.config ?? null,
+  );
   const [status, setStatus] = useState<string | null>(null);
-  const [sleepStatus, setSleepStatus] = useState<string | null>(null);
-  const [editingMode, setEditingMode] = useState<"effects" | "per-key">("effects");
-  const directionOptions = useMemo(() => directionsForMode(config.mode), [config.mode]);
+  const [editingMode, setEditingMode] = useState<EditingMode>("effects");
   const selectedEffect = effectForMode(config.mode);
   const customEditor = useCustomLightingEditor(editingMode === "per-key");
   const busy = activeOperation !== null;
@@ -48,37 +64,34 @@ export function LightingPanel() {
     setConfig((current) => ({ ...current, [key]: value }));
 
   const changeMode = (mode: LightingMode) => {
-    setConfig((current) => configForMode(current, mode));
+    setConfig((current) => configForEffect({ ...current, mode }));
   };
 
-  const applyConfig = async (nextConfig: LightingConfig) => {
+  const applyLighting = async () => {
     // The button exposes the in-progress state. Keep the live region for the
     // outcome so the same update is not announced twice.
     setStatus(null);
     try {
       await runOperation("lighting", (operationController) =>
-        setLighting(operationController, nextConfig),
+        setLighting(operationController, config),
       );
-      setAppliedConfig({ ...nextConfig, color: { ...nextConfig.color } });
-      setStatus(`Lighting applied to AK820 Pro · mode ${nextConfig.mode}`);
+      const sent = { ...config, color: { ...config.color } };
+      setAppliedConfig(sent);
+      rememberSentLighting({ config: sent });
+      setStatus(`Lighting applied · ${selectedEffect.displayName}`);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Lighting update failed");
+      setStatus(errorMessage(error, "Lighting update failed"));
     }
   };
 
-  const applyLighting = () => applyConfig(config);
-
-  const applySleep = async () => {
-    setSleepStatus("Applying sleep timeout…");
-    try {
-      await runOperation("lighting sleep", (operationController) =>
-        setLightingSleepTime(operationController, sleepTime),
-      );
-      setSleepStatus("Sleep timeout applied");
-    } catch (error) {
-      setSleepStatus(error instanceof Error ? error.message : "Sleep timeout update failed");
-    }
-  };
+  let applyHint = "Connect your keyboard to send these settings.";
+  if (connected) {
+    applyHint = hasChanges
+      ? "Your preview has changes that haven't been sent yet."
+      : "These are the last settings sent from this browser.";
+  }
+  let applyLabel = hasChanges ? "Apply to keyboard" : "Reapply to keyboard";
+  if (applyingLighting) applyLabel = "Applying…";
 
   return (
     <section className="panel lighting-panel lighting-workbench">
@@ -91,30 +104,24 @@ export function LightingPanel() {
         </div>
         <fieldset className="lighting-mode-switch">
           <legend className="visually-hidden">Lighting editing mode</legend>
-          <button
-            type="button"
-            className={editingMode === "effects" ? "is-active" : ""}
-            aria-pressed={editingMode === "effects"}
-            onClick={() => setEditingMode("effects")}
-          >
-            Effects
-          </button>
-          <button
-            type="button"
-            className={editingMode === "per-key" ? "is-active" : ""}
-            aria-pressed={editingMode === "per-key"}
-            onClick={() => setEditingMode("per-key")}
-          >
-            Per-key
-          </button>
+          {EDITING_MODES.map(([mode, label]) => (
+            <button
+              type="button"
+              className={classNames(editingMode === mode && "is-active")}
+              aria-pressed={editingMode === mode}
+              onClick={() => setEditingMode(mode)}
+              key={mode}
+            >
+              {label}
+            </button>
+          ))}
         </fieldset>
       </div>
       <LightingKeyboard {...keyboardProps} />
       <p className="keyboard-context">
         {editingMode === "effects" ? (
           <>
-            Provisional effect simulation · calibration against keyboard recordings is pending ·
-            changes are sent only when you apply them.
+            The preview approximates each animation · nothing is sent until you apply.
             <span className="mobile-pan-hint"> Swipe sideways to inspect every key.</span>
           </>
         ) : (
@@ -124,7 +131,7 @@ export function LightingPanel() {
           </>
         )}
       </p>
-      {editingMode === "effects" ? (
+      {editingMode === "effects" && (
         <div className="lighting-editor">
           <fieldset className="lighting-controls settings-card" disabled={busy}>
             <div className="settings-card-heading">
@@ -133,7 +140,7 @@ export function LightingPanel() {
                 <h3>Choose an effect</h3>
               </div>
               <span className={`draft-state ${hasChanges ? "is-dirty" : "is-saved"}`}>
-                {hasChanges ? "Not applied" : "Applied"}
+                {hasChanges ? "Not sent" : "Last sent"}
               </span>
             </div>
             <EffectPicker selected={selectedEffect} onChange={changeMode} />
@@ -143,43 +150,17 @@ export function LightingPanel() {
               </p>
             )}
             {selectedEffect.supportsColor && (
-              <fieldset className="control-color">
-                <legend>Color</legend>
-                <div className="color-picker-control">
-                  <input
-                    className="lighting-color-input"
-                    aria-label="Lighting color"
-                    type="color"
-                    value={rgbToHex(config.color)}
-                    onChange={(event) => updateConfig("color", hexToRgb(event.target.value))}
-                  />
-                  <span>
-                    <strong>{rgbToHex(config.color).toUpperCase()}</strong>
-                    <small>Custom color</small>
-                  </span>
-                </div>
-                <fieldset className="color-presets">
-                  <legend className="visually-hidden">Color presets</legend>
-                  {COLOR_PRESETS.map((color) => (
-                    <button
-                      type="button"
-                      className={rgbToHex(config.color) === color ? "is-active" : ""}
-                      style={{ "--swatch-color": color } as CSSProperties}
-                      aria-label={`Use color ${color}`}
-                      aria-pressed={rgbToHex(config.color) === color}
-                      onClick={() => updateConfig("color", hexToRgb(color))}
-                      key={color}
-                    />
-                  ))}
-                </fieldset>
-              </fieldset>
+              <ColorControl
+                color={rgbToHex(config.color)}
+                onChange={(hex) => updateConfig("color", hexToRgb(hex))}
+              />
             )}
             {selectedEffect.supportsPalette && (
               <label className="checkbox-label control-rainbow">
                 <input
                   type="checkbox"
                   checked={config.rainbow}
-                  onChange={(event) => updateConfig("rainbow", event.target.checked)}
+                  onChange={(event) => updateConfig("rainbow", event.currentTarget.checked)}
                 />
                 Built-in multicolor palette
               </label>
@@ -198,17 +179,20 @@ export function LightingPanel() {
                 onChange={(value) => updateConfig("speed", value)}
               />
             )}
-            {directionOptions.length > 0 && (
+            {selectedEffect.directions.length > 0 && (
               <label>
                 Direction
                 <select
                   aria-label="Direction"
                   value={config.direction}
                   onChange={(event) =>
-                    updateConfig("direction", Number(event.target.value) as LightingDirection)
+                    updateConfig(
+                      "direction",
+                      Number(event.currentTarget.value) as LightingDirection,
+                    )
                   }
                 >
-                  {directionOptions.map(([value, label]) => (
+                  {selectedEffect.directions.map(([value, label]) => (
                     <option key={value} value={value}>
                       {label}
                     </option>
@@ -217,13 +201,7 @@ export function LightingPanel() {
               </label>
             )}
             <div className="lighting-apply-bar">
-              <span>
-                {connected
-                  ? hasChanges
-                    ? "Your preview has changes that are not on the keyboard yet."
-                    : "The keyboard is using these settings."
-                  : "Connect your keyboard to send these settings."}
-              </span>
+              <span>{applyHint}</span>
               <button
                 type="button"
                 className="primary-action"
@@ -231,11 +209,7 @@ export function LightingPanel() {
                 aria-busy={applyingLighting}
                 onClick={applyLighting}
               >
-                {applyingLighting
-                  ? "Applying…"
-                  : hasChanges
-                    ? "Apply to keyboard"
-                    : "Reapply to keyboard"}
+                {applyLabel}
               </button>
             </div>
             {status && (
@@ -249,38 +223,106 @@ export function LightingPanel() {
             )}
           </fieldset>
 
-          <div className="subsection sleep-section">
-            <div className="sleep-section-heading">
-              <p className="eyebrow">Power saving</p>
-              <h3>Lighting sleep</h3>
-            </div>
-            <label>
-              Turn lighting off after
-              <select
-                aria-label="Lighting sleep timeout"
-                value={sleepTime}
-                disabled={busy}
-                onChange={(event) => setSleepTime(Number(event.target.value) as SleepTime)}
-              >
-                <option value={LightingSleepTime.Never}>Never</option>
-                <option value={LightingSleepTime.OneMinute}>1 minute</option>
-                <option value={LightingSleepTime.FiveMinutes}>5 minutes</option>
-                <option value={LightingSleepTime.ThirtyMinutes}>30 minutes</option>
-              </select>
-            </label>
-            <button type="button" disabled={!connected || busy} onClick={applySleep}>
-              Apply sleep timeout
-            </button>
-            {sleepStatus && (
-              <p className="lighting-feedback" role="status" aria-live="polite">
-                {sleepStatus}
-              </p>
-            )}
-          </div>
+          <LightingSleepSettings initial={lastSent.sleepTime} />
         </div>
-      ) : null}
-      {editingMode === "per-key" ? customEditor.controls : null}
+      )}
+      {editingMode === "per-key" && customEditor.controls}
     </section>
+  );
+}
+
+/** The lighting sleep timer. It is sent on its own, separately from the effect. */
+function LightingSleepSettings({ initial }: { initial: SleepTime | undefined }) {
+  const { connected, activeOperation, runOperation } = useDeviceSession();
+  const [sleepTime, setSleepTime] = useState<SleepTime>(initial ?? LightingSleepTime.Never);
+  const [sentSleepTime, setSentSleepTime] = useState<SleepTime | null>(initial ?? null);
+  const [sleepStatus, setSleepStatus] = useState<string | null>(null);
+  const busy = activeOperation !== null;
+
+  const applySleep = async () => {
+    setSleepStatus("Applying sleep timeout…");
+    try {
+      await runOperation("lighting sleep", (operationController) =>
+        setLightingSleepTime(operationController, sleepTime),
+      );
+      setSentSleepTime(sleepTime);
+      rememberSentLighting({ sleepTime });
+      setSleepStatus("Sleep timeout applied");
+    } catch (error) {
+      setSleepStatus(errorMessage(error, "Sleep timeout update failed"));
+    }
+  };
+
+  return (
+    <div className="subsection sleep-section">
+      <div className="sleep-section-heading">
+        <p className="eyebrow">Power saving</p>
+        <h3>Lighting sleep</h3>
+      </div>
+      <label>
+        Turn lighting off after
+        <select
+          aria-label="Lighting sleep timeout"
+          value={sleepTime}
+          disabled={busy}
+          onChange={(event) => {
+            setSleepTime(Number(event.currentTarget.value) as SleepTime);
+            setSleepStatus(null);
+          }}
+        >
+          <option value={LightingSleepTime.Never}>Never</option>
+          <option value={LightingSleepTime.OneMinute}>1 minute</option>
+          <option value={LightingSleepTime.FiveMinutes}>5 minutes</option>
+          <option value={LightingSleepTime.ThirtyMinutes}>30 minutes</option>
+        </select>
+      </label>
+      <button type="button" disabled={!connected || busy} onClick={applySleep}>
+        Apply sleep timeout
+      </button>
+      {sentSleepTime !== null && sentSleepTime !== sleepTime && (
+        <p className="lighting-feedback">Not sent yet.</p>
+      )}
+      {sleepStatus && (
+        <p className="lighting-feedback" role="status" aria-live="polite">
+          {sleepStatus}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ColorControl({ color, onChange }: { color: string; onChange(hex: string): void }) {
+  return (
+    <fieldset className="control-color">
+      <legend>Color</legend>
+      <div className="color-picker-control">
+        <input
+          className="lighting-color-input"
+          aria-label="Lighting color"
+          type="color"
+          value={color}
+          onInput={(event) => onChange(event.currentTarget.value)}
+        />
+        <span>
+          <strong>{color.toUpperCase()}</strong>
+          <small>Custom color</small>
+        </span>
+      </div>
+      <fieldset className="color-presets">
+        <legend className="visually-hidden">Color presets</legend>
+        {COLOR_PRESETS.map(([name, preset]) => (
+          <button
+            type="button"
+            className={classNames(color === preset && "is-active")}
+            style={{ "--swatch-color": preset } as CSSProperties}
+            aria-label={`Use ${name}`}
+            aria-pressed={color === preset}
+            onClick={() => onChange(preset)}
+            key={preset}
+          />
+        ))}
+      </fieldset>
+    </fieldset>
   );
 }
 
@@ -301,7 +343,7 @@ function EffectPicker({
   selected,
   onChange,
 }: {
-  selected: (typeof LIGHTING_EFFECTS)[number];
+  selected: LightingEffect;
   onChange(mode: LightingMode): void;
 }) {
   const picker = useRef<HTMLDetailsElement>(null);
@@ -311,7 +353,7 @@ function EffectPicker({
       <legend>Effect</legend>
       <details className="effect-picker" ref={picker}>
         <summary aria-label="Lighting effect">
-          <EffectGlyph animationId={selected.animation.id} />
+          <EffectGlyph animationId={selected.animationId} />
           <span>
             <strong>{selected.displayName}</strong>
             <small>{selected.description}</small>
@@ -324,11 +366,10 @@ function EffectPicker({
             <button
               type="button"
               aria-label={effect.displayName}
-              className={
-                effect.protocolId === selected.protocolId
-                  ? "effect-option is-active"
-                  : "effect-option"
-              }
+              className={classNames(
+                "effect-option",
+                effect.protocolId === selected.protocolId && "is-active",
+              )}
               aria-pressed={effect.protocolId === selected.protocolId}
               onClick={() => {
                 onChange(effect.protocolId);
@@ -336,7 +377,7 @@ function EffectPicker({
               }}
               key={effect.protocolId}
             >
-              <EffectGlyph animationId={effect.animation.id} />
+              <EffectGlyph animationId={effect.animationId} />
               <span>
                 <strong>{effect.displayName}</strong>
                 <small>{effect.description}</small>
@@ -349,11 +390,7 @@ function EffectPicker({
   );
 }
 
-function EffectGlyph({
-  animationId,
-}: {
-  animationId: (typeof LIGHTING_EFFECTS)[number]["animation"]["id"];
-}) {
+function EffectGlyph({ animationId }: { animationId: LightingEffect["animationId"] }) {
   return <span className={`effect-glyph is-${animationId}`} aria-hidden="true" />;
 }
 
@@ -381,21 +418,8 @@ function LevelSelect({
         max={5}
         step={1}
         value={value}
-        onChange={(event) => onChange(Number(event.target.value) as LightingLevel)}
+        onInput={(event) => onChange(Number(event.currentTarget.value) as LightingLevel)}
       />
     </label>
   );
-}
-
-function directionsForMode(mode: LightingMode): readonly (readonly [LightingDirection, string])[] {
-  return effectForMode(mode).directions;
-}
-
-function configForMode(config: LightingConfig, mode: LightingMode): LightingConfig {
-  const supportedDirections = directionsForMode(mode);
-  return {
-    ...config,
-    mode,
-    direction: supportedDirections[0]?.[0] ?? config.direction,
-  };
 }

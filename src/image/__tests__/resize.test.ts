@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { calculateContainRect, containResizeRgba, findDominantColor } from "../resize";
+import { calculateContainRect, containResize, findDominantColor } from "../resize";
 
 function solidRgba(
   width: number,
@@ -30,7 +30,7 @@ describe("contain image resize", () => {
     const source = solidRgba(50, 100, [255, 0, 0, 255]);
     source[3] = 0;
 
-    const resized = containResizeRgba(source, 50, 100, 128, 128);
+    const resized = containResize(source, 50, 100, 128, 128).rgba;
 
     expect(rgbaAt(resized, 128, 0, 64)).toEqual([0, 0, 0, 255]);
     expect(rgbaAt(resized, 128, 64, 64)).toEqual([255, 0, 0, 255]);
@@ -45,7 +45,7 @@ describe("contain image resize", () => {
       scale: 1.28,
     });
 
-    const resized = containResizeRgba(solidRgba(50, 100, [255, 0, 0, 255]), 50, 100, 128, 128);
+    const resized = containResize(solidRgba(50, 100, [255, 0, 0, 255]), 50, 100, 128, 128).rgba;
     expect(rgbaAt(resized, 128, 0, 64)).toEqual([255, 0, 0, 255]);
     expect(rgbaAt(resized, 128, 32, 64)).toEqual([255, 0, 0, 255]);
     expect(rgbaAt(resized, 128, 95, 64)).toEqual([255, 0, 0, 255]);
@@ -53,10 +53,48 @@ describe("contain image resize", () => {
   });
 
   test("centers landscape images with dominant-color top and bottom padding", () => {
-    const resized = containResizeRgba(solidRgba(100, 50, [0, 0, 255, 255]), 100, 50, 128, 128);
+    const resized = containResize(solidRgba(100, 50, [0, 0, 255, 255]), 100, 50, 128, 128).rgba;
     expect(rgbaAt(resized, 128, 64, 0)).toEqual([0, 0, 255, 255]);
     expect(rgbaAt(resized, 128, 64, 32)).toEqual([0, 0, 255, 255]);
     expect(rgbaAt(resized, 128, 64, 95)).toEqual([0, 0, 255, 255]);
     expect(rgbaAt(resized, 128, 64, 127)).toEqual([0, 0, 255, 255]);
+  });
+});
+
+describe("supersampled resize", () => {
+  test("averages fine detail when downscaling instead of picking one source pixel", () => {
+    // 1-pixel black/white stripes collapse to mid-grey rather than aliasing.
+    const width = 256;
+    const height = 256;
+    const source = new Uint8ClampedArray(width * height * 4);
+    for (let i = 0; i < width * height; i++) {
+      const value = i % 2 === 0 ? 0 : 255;
+      source.set([value, value, value, 255], i * 4);
+    }
+    const resized = containResize(source, width, height, 128, 128).rgba;
+    const [red] = rgbaAt(resized, 128, 64, 64);
+    expect(red).toBeGreaterThan(100);
+    expect(red).toBeLessThan(155);
+  });
+
+  test("keeps pixel art crisp when upscaling", () => {
+    const source = new Uint8ClampedArray([255, 0, 0, 255, 0, 0, 255, 255]);
+    const resized = containResize(source, 2, 1, 128, 128).rgba;
+    expect(rgbaAt(resized, 128, 63, 64)).toEqual([255, 0, 0, 255]);
+    expect(rgbaAt(resized, 128, 64, 64)).toEqual([0, 0, 255, 255]);
+  });
+
+  test("uses an explicit padding colour and reports what it applied", () => {
+    const { rgba, padding } = containResize(
+      solidRgba(100, 50, [0, 0, 255, 255]),
+      100,
+      50,
+      128,
+      128,
+      [10, 20, 30],
+    );
+    expect(padding).toEqual([10, 20, 30]);
+    expect(rgbaAt(rgba, 128, 64, 0)).toEqual([10, 20, 30, 255]);
+    expect(rgbaAt(rgba, 128, 64, 64)).toEqual([0, 0, 255, 255]);
   });
 });

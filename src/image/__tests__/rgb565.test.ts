@@ -29,3 +29,33 @@ describe("rgb888ToRgb565", () => {
     expect(out.byteLength).toBe(pixels * 2);
   });
 });
+
+describe("rgb888ToRgb565 dithering", () => {
+  const solid = (value: [number, number, number], size = 4) => {
+    const rgba = new Uint8ClampedArray(size * size * 4);
+    for (let i = 0; i < size * size; i++) rgba.set([...value, 255], i * 4);
+    return rgba;
+  };
+  const words = (out: Uint8Array) =>
+    Array.from({ length: out.length / 2 }, (_, i) => out[i * 2] | (out[i * 2 + 1] << 8));
+
+  test("leaves exactly representable colours perfectly flat", () => {
+    for (const color of [
+      [0, 0, 0],
+      [255, 255, 255],
+      [248, 252, 248],
+      [64, 128, 32],
+    ] as [number, number, number][]) {
+      const out = words(rgb888ToRgb565(solid(color), 4, 4, "le", { dither: true }));
+      expect(new Set(out).size).toBe(1);
+    }
+  });
+
+  test("mixes neighbouring levels so in-between shades average correctly", () => {
+    // Red 244 sits halfway between the 5-bit levels 240 and 248.
+    const out = words(rgb888ToRgb565(solid([244, 0, 0]), 4, 4, "le", { dither: true }));
+    const reds = out.map((word) => (word >> 11) & 0x1f);
+    expect(new Set(reds)).toEqual(new Set([30, 31]));
+    expect(reds.filter((red) => red === 31)).toHaveLength(8);
+  });
+});

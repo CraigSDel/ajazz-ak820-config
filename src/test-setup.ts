@@ -1,10 +1,12 @@
 import {
   type Canvas,
-  type Image,
   createCanvas,
+  type Image,
   loadImage,
   type CanvasRenderingContext2D as NodeCRC,
 } from "canvas";
+import { decompressFrames, parseGIF } from "gifuct-js";
+import { beforeEach } from "vitest";
 
 // Node exposes an incomplete experimental localStorage global in some versions.
 // Provide the Storage subset used by the application for deterministic tests.
@@ -21,6 +23,8 @@ const testStorage: Storage = {
 };
 Object.defineProperty(globalThis, "localStorage", { configurable: true, value: testStorage });
 Object.defineProperty(window, "localStorage", { configurable: true, value: testStorage });
+// Saved preferences (last-sent lighting, auto time sync) must not leak between tests.
+beforeEach(() => storageValues.clear());
 
 class OffscreenCanvasPolyfill {
   width: number;
@@ -72,3 +76,59 @@ if (!globalThis.Blob.prototype.arrayBuffer) {
   const buf = Buffer.from(await source.arrayBuffer());
   return await loadImage(buf);
 };
+
+/**
+ * Minimal stand-in for WebCodecs ImageDecoder (GIF only) so the animated
+ * pipeline can run under jsdom. Chrome's real decoder handles disposal; this
+ * test double only composites opaque patch pixels, which the fixtures need.
+ */
+class GifImageDecoderPolyfill {
+  completed = Promise.resolve();
+  tracks: { ready: Promise<void>; selectedTrack: { frameCount: number } };
+  private readonly frames: { canvas: Canvas; durationUs: number }[] = [];
+
+  constructor({ data, type }: { data: ArrayBuffer; type: string }) {
+    if (type !== "image/gif") throw new Error(`Test ImageDecoder only supports GIF, not ${type}`);
+    const gif = parseGIF(data);
+    const { width, height } = gif.lsd;
+    const composite = new Uint8ClampedArray(width * height * 4);
+    for (const frame of decompressFrames(gif, true)) {
+      const { left, top, width: w, height: h } = frame.dims;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const src = (y * w + x) * 4;
+          if (frame.patch[src + 3] === 0) continue;
+          composite.set(frame.patch.subarray(src, src + 4), ((top + y) * width + left + x) * 4);
+        }
+      }
+      const canvas = createCanvas(width, height);
+      const ctx = canvas.getContext("2d");
+      const image = ctx.createImageData(width, height);
+      image.data.set(composite);
+      ctx.putImageData(image, 0, 0);
+      this.frames.push({ canvas, durationUs: frame.delay * 1000 });
+    }
+    this.tracks = { ready: Promise.resolve(), selectedTrack: { frameCount: this.frames.length } };
+  }
+
+  async decode({ frameIndex }: { frameIndex: number }) {
+    const { canvas, durationUs } = this.frames[frameIndex];
+    return {
+      image: Object.assign(canvas, {
+        displayWidth: canvas.width,
+        displayHeight: canvas.height,
+        duration: durationUs,
+        close() {},
+      }),
+    };
+  }
+
+  close() {}
+}
+
+if (!("ImageDecoder" in globalThis)) {
+  Object.defineProperty(globalThis, "ImageDecoder", {
+    configurable: true,
+    value: GifImageDecoderPolyfill,
+  });
+}

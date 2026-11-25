@@ -18,8 +18,8 @@ Chromium browser. It remains local-only and communicates through WebHID.
 - Experimental write-only live per-key RGB editor with paint, fill, clear,
   start, and stop.
 - Dedicated hardware Testing workspace with persistent results and report
-  export, including logged per-effect RGB reapplications. Set
-  `VITE_SHOW_HARDWARE_TESTING=false` to hide it.
+  export, including logged per-effect RGB reapplications. Hidden by default;
+  set `VITE_SHOW_HARDWARE_TESTING=true` to show it. It writes only on request.
 - Responsive and keyboard-accessible UI.
 
 ## Hardware validation still required

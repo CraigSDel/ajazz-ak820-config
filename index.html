@@ -3,9 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <!-- style-src needs 'unsafe-inline' because Vite's dev server injects
-         CSS as dynamic <style> tags (and React inline-style attributes are
-         emitted via setAttribute("style", ...) which CSP also gates). The
-         risk this opens (inline CSS-based XSS) is far smaller than what
+         CSS as dynamic <style> tags and components set inline custom
+         properties (style attributes are also gated by CSP). The risk this
+         opens (inline CSS-based XSS) is far smaller than what
          script-src 'self' continues to block. -->
     <meta
       http-equiv="Content-Security-Policy"
@@ -14,7 +14,7 @@
     <meta name="referrer" content="no-referrer" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ajazz-ak820-config</title>
+    <title>AJAZZ AK820 Pro Configurator</title>
   </head>
   <body>
     <div id="root"></div>

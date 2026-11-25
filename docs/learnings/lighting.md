@@ -53,10 +53,16 @@ AK820 Pro effects remained dark.
 The keyboard-facing identity and frontend interpretation are deliberately
 separate:
 
-- `LightingMode.Off` and `LightingMode.Effect1`–`Effect19` are stable protocol
-  selections. They are the only identities allowed in packet-building code.
-- `LightingEffect.displayName`, `description`, `preview`, and control
+- `LightingMode` values (0–19) are stable protocol selections and the only
+  identities allowed in packet-building code. Their identifiers (`Static`,
+  `Breath`, `Tilt`, …) are the OEM driver's labels for each number, so code
+  reads by name. They say which number is sent, not how the effect looks.
+- `LightingEffect.displayName`, `description`, `animationId`, and control
   capabilities are replaceable presentation metadata.
+- `configForEffect` clears settings the selected effect has no control for
+  (palette, direction), so a hidden choice never reaches the preview or the
+  packet. Unused values fall back to palette off and direction 0, the values
+  used in the 2026-07-27 hardware sweep.
 - A renamed or corrected animation must never change its `protocolId`.
 
 The AK820 Pro manual confirms 20 cyclic lighting effects and controls for
@@ -109,14 +115,15 @@ packet. Byte 8 selects Never (`0`), 1 minute (`1`), 5 minutes (`2`), or
 ## UI and validation
 
 The Lighting workspace contains normal effect and per-key controls. Hardware
-validation lives in the separate Testing workspace, which can be hidden with
-`VITE_SHOW_HARDWARE_TESTING=false`.
+validation lives in the separate Testing workspace, which is hidden unless
+`VITE_SHOW_HARDWARE_TESTING=true`.
 
-The virtual keyboard uses a distinct, data-driven simulation profile for every
-effect. Profiles describe spatial motion, palette ownership, brightness envelope,
-five speed durations, direction, and reactive propagation. They are deliberately
-marked provisional until calibrated against fixed-camera recordings of the
-physical `0x8009` keyboard; they do not alter protocol IDs or packets. The Testing
+The virtual keyboard gives every effect a distinct CSS animation
+(`animationId`). These are approximations, not calibrated against the physical
+`0x8009` keyboard, and the UI labels them as such. Their cycle lengths
+(`EFFECT_SPEED_SECONDS`, 2.4 s at speed 1 to 0.8 s at speed 5) and the
+assumption that higher levels are faster are guesses; they never alter
+protocol IDs or packets. The Testing
 workspace stores manual observations locally, applies the next untested effect automatically,
 can reapply the selected effect, and exports a text report. Reapplication counts
 are persisted per effect and included in the report. Changing the preset
@@ -135,6 +142,24 @@ implementations are not mixed.
 - Serialize every operation that shares a HID endpoint.
 
 ## Remaining hardware checks
+
+Open protocol questions found in code review (none can be settled without the
+keyboard):
+
+- The manual advertises **six** brightness and speed levels, and the packet
+  accepts 0–5, but the UI offers 1–5. Check whether speed 0 is a usable
+  slowest (or fastest) speed and whether brightness 0 differs from Off.
+- Confirm the direction of speed levels (is 5 fastest?) before calibrating
+  preview timing.
+- Record the exact RGB of the firmware's `Fn+→` colours, especially orange and
+  purple, and update the swatches in `LightingPanel`.
+- Time sync reads a feature acknowledgement after TIME and SAVE only, while
+  both references read after every SET. It works on hardware, but confirm the
+  clock still sets reliably when the keyboard is busy.
+- Live per-key RGB commits each table with `04 02` (the SAVE command) about ten
+  times a second, as the OEM driver does. Confirm it does not write flash.
+- Uploads of up to 255 frames (about 8 MB) are allowed by the header; confirm
+  the AK820 Pro's flash accepts the largest upload.
 
 - Record a visual result for Off; effects 1–19 passed the corrected transaction
   sweep on 2026-07-27.

@@ -1,26 +1,20 @@
-import type { ReportMessage } from "../protocol/types";
 import {
   AJAZZ_VENDOR_ID,
   AK820_PRO_PRODUCT_IDS,
   CONTROL_USAGE_PAGE,
   DATA_USAGE_PAGE,
 } from "../protocol/constants";
-import { DeviceFailure } from "./errors";
+import { isImageAcknowledgement } from "../protocol/image";
+import { commandOf, DeviceFailure } from "./errors";
 import type { DeviceController } from "./types";
 
 type DevicePair = { control: HIDDevice; data: HIDDevice };
 
 const MAX_PENDING_INPUT_REPORTS = 32;
-const IMAGE_ACK_PREFIX = [0x01, 0x5a, 0x02, 0x00] as const;
 // Feature reads are only best-effort handshakes. Some WebHID/firmware
 // combinations never settle receiveFeatureReport(), which must not leave the
 // global operation lock and UI stuck indefinitely.
 const FEATURE_REPORT_TIMEOUT_MS = 300;
-
-function isImageAcknowledgement(data: DataView): boolean {
-  if (data.byteLength < IMAGE_ACK_PREFIX.length) return false;
-  return IMAGE_ACK_PREFIX.every((byte, index) => data.getUint8(index) === byte);
-}
 
 function hasUsagePage(device: HIDDevice, usagePage: number): boolean {
   return device.collections.some((collection) => collection.usagePage === usagePage);
@@ -57,23 +51,8 @@ function findDevicePairs(devices: readonly HIDDevice[]): DevicePair[] {
   return pairs;
 }
 
-/**
- * Adapt a `ReportMessage` (hidapi convention: first byte of the wire payload is
- * carried in `reportId`) to WebHID's send-shape for an unnumbered HID report.
- *
- * AJAZZ AK820 Pro's control interface declares unnumbered feature reports
- * (declared report ID = 0, full 64-byte payload). hidapi accepts the byte at
- * position 0 as the report ID and routes accordingly; Chrome's WebHID is
- * stricter and rejects any non-zero `reportId` that isn't declared in the
- * HID descriptor. So we always send unnumbered (reportId=0) with the
- * original leading byte spliced back to the front of the payload.
- */
-function toUnnumberedWire(report: ReportMessage): { reportId: 0; bytes: Uint8Array } {
-  const wire = new Uint8Array(report.bytes.byteLength + 1);
-  wire[0] = report.reportId;
-  wire.set(report.bytes, 1);
-  return { reportId: 0, bytes: wire };
-}
+/** The AK820 Pro's vendor interfaces declare no report IDs, so all reports use 0. */
+const UNNUMBERED_REPORT = 0;
 
 export class WebHIDDeviceController implements DeviceController {
   private controlDevice: HIDDevice | null = null;
@@ -93,24 +72,17 @@ export class WebHIDDeviceController implements DeviceController {
     return this.controlDevice?.opened === true && this.dataDevice?.opened === true;
   }
 
-  getIdentity() {
-    const device = this.controlDevice;
-    return device
-      ? { vendorId: device.vendorId, productId: device.productId, productName: device.productName }
-      : null;
-  }
-
   async connect(): Promise<void> {
     if (typeof navigator === "undefined" || !("hid" in navigator)) {
       throw new DeviceFailure({ kind: "unsupported-browser" });
     }
 
+    if (this.isConnected()) return;
+
     const filters = AK820_PRO_PRODUCT_IDS.map((productId) => ({
       vendorId: AJAZZ_VENDOR_ID,
       productId,
     }));
-
-    if (this.isConnected()) return;
 
     const grantedPairs = findDevicePairs(await navigator.hid.getDevices());
     let pair = grantedPairs.length === 1 ? grantedPairs[0] : undefined;
@@ -131,7 +103,7 @@ export class WebHIDDeviceController implements DeviceController {
     } catch (cause) {
       if (control.opened) await control.close().catch(() => undefined);
       if (data.opened) await data.close().catch(() => undefined);
-      throw new DeviceFailure({ kind: "transfer-failed", reportId: 0, cause });
+      throw new DeviceFailure({ kind: "transfer-failed", command: 0, cause });
     }
 
     this.controlDevice = control;
@@ -161,9 +133,13 @@ export class WebHIDDeviceController implements DeviceController {
   }
 
   async disconnect(): Promise<void> {
-    if (this.controlDevice?.opened) await this.controlDevice.close();
-    if (this.dataDevice?.opened) await this.dataDevice.close();
-    this.handleDisconnect();
+    // Always tear down local state, even if the browser fails to close a handle.
+    try {
+      if (this.controlDevice?.opened) await this.controlDevice.close();
+      if (this.dataDevice?.opened) await this.dataDevice.close();
+    } finally {
+      this.handleDisconnect();
+    }
   }
 
   private handleDisconnect(): void {
@@ -172,7 +148,7 @@ export class WebHIDDeviceController implements DeviceController {
     }
     this.boundDataInputListener = null;
     // Resolve any pending waiters with null so callers don't hang forever.
-    for (const w of this.dataInputWaiters) w(null);
+    for (const waiter of this.dataInputWaiters) waiter(null);
     this.dataInputWaiters = [];
     this.dataInputQueue = [];
 
@@ -182,42 +158,31 @@ export class WebHIDDeviceController implements DeviceController {
       navigator.hid.removeEventListener("disconnect", this.boundDisconnectListener);
       this.boundDisconnectListener = null;
     }
-    for (const h of this.disconnectHandlers) h();
+    for (const handler of this.disconnectHandlers) handler();
   }
 
-  async sendFeatureReport(report: ReportMessage): Promise<void> {
-    const device = this.controlDevice;
-    if (!device?.opened) {
-      throw new DeviceFailure({ kind: "device-disconnected" });
-    }
-    const wire = toUnnumberedWire(report);
-    try {
-      await device.sendFeatureReport(wire.reportId, wire.bytes as BufferSource);
-    } catch (cause) {
-      throw new DeviceFailure({
-        kind: "transfer-failed",
-        reportId: report.reportId,
-        cause,
-      });
-    }
+  async sendFeatureReport(packet: Uint8Array): Promise<void> {
+    await this.transfer(this.controlDevice, packet, (device) =>
+      device.sendFeatureReport(UNNUMBERED_REPORT, packet as BufferSource),
+    );
   }
 
-  async sendReport(report: ReportMessage): Promise<void> {
-    const device = this.dataDevice;
-    if (!device?.opened) {
-      throw new DeviceFailure({ kind: "device-disconnected" });
-    }
-    // Data-interface OUTPUT reports are pure 4096-byte chunks sent as
-    // unnumbered reports. We send `report.bytes` as-is with reportId=0 —
-    // no leading byte to splice (operations.ts already supplies reportId=0).
+  async sendReport(chunk: Uint8Array): Promise<void> {
+    await this.transfer(this.dataDevice, chunk, (device) =>
+      device.sendReport(UNNUMBERED_REPORT, chunk as BufferSource),
+    );
+  }
+
+  private async transfer(
+    device: HIDDevice | null,
+    bytes: Uint8Array,
+    send: (device: HIDDevice) => Promise<void>,
+  ): Promise<void> {
+    if (!device?.opened) throw new DeviceFailure({ kind: "device-disconnected" });
     try {
-      await device.sendReport(report.reportId, report.bytes as BufferSource);
+      await send(device);
     } catch (cause) {
-      throw new DeviceFailure({
-        kind: "transfer-failed",
-        reportId: report.reportId,
-        cause,
-      });
+      throw new DeviceFailure({ kind: "transfer-failed", command: commandOf(bytes), cause });
     }
   }
 
@@ -231,8 +196,8 @@ export class WebHIDDeviceController implements DeviceController {
     if (queued) return queued;
     return new Promise<DataView | null>((resolve) => {
       const timer = setTimeout(() => {
-        const idx = this.dataInputWaiters.indexOf(wrappedResolver);
-        if (idx >= 0) this.dataInputWaiters.splice(idx, 1);
+        const index = this.dataInputWaiters.indexOf(wrappedResolver);
+        if (index >= 0) this.dataInputWaiters.splice(index, 1);
         resolve(null);
       }, timeoutMs);
       const wrappedResolver = (report: DataView | null) => {
@@ -247,7 +212,7 @@ export class WebHIDDeviceController implements DeviceController {
     this.dataInputQueue = [];
   }
 
-  async receiveFeatureReport(reportId: number): Promise<DataView | null> {
+  async receiveFeatureReport(): Promise<DataView | null> {
     const device = this.controlDevice;
     if (!device?.opened) {
       throw new DeviceFailure({ kind: "device-disconnected" });
@@ -255,7 +220,7 @@ export class WebHIDDeviceController implements DeviceController {
     let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
       return await Promise.race([
-        device.receiveFeatureReport(reportId).catch(() => null),
+        device.receiveFeatureReport(UNNUMBERED_REPORT).catch(() => null),
         new Promise<null>((resolve) => {
           timeout = setTimeout(() => resolve(null), FEATURE_REPORT_TIMEOUT_MS);
         }),

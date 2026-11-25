@@ -1,6 +1,4 @@
-import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
-// biome-ignore lint/correctness/noUnusedImports: required by this test file's classic JSX transform
-import React from "react";
+import { cleanup, fireEvent, render, waitFor } from "@testing-library/preact";
 import { afterEach, describe, expect, test } from "vitest";
 import { DeviceSessionProvider } from "../../device/DeviceSession";
 import { MockDeviceController } from "../../device/mock-controller";
@@ -23,9 +21,9 @@ describe("LightingPanel", () => {
     const view = await renderPanel();
     const preview = view.getByLabelText(/Virtual AK820 Pro lighting preview/);
     expect(preview.getAttribute("aria-label")).toContain("#ff0000");
-    expect(preview.getAttribute("aria-label")).toContain("provisional simulation");
+    expect(preview.getAttribute("aria-label")).toContain("approximate animation");
 
-    fireEvent.change(view.getByLabelText("Lighting color"), { target: { value: "#123456" } });
+    fireEvent.input(view.getByLabelText("Lighting color"), { target: { value: "#123456" } });
     expect(preview.getAttribute("aria-label")).toContain("#123456");
   });
 
@@ -41,11 +39,11 @@ describe("LightingPanel", () => {
 
   test("offers quick color swatches without replacing the full color picker", async () => {
     const view = await renderPanel();
-    fireEvent.click(view.getByRole("button", { name: "Use color #0a84ff" }));
-    expect((view.getByLabelText("Lighting color") as HTMLInputElement).value).toBe("#0a84ff");
+    fireEvent.click(view.getByRole("button", { name: "Use Blue" }));
+    expect((view.getByLabelText("Lighting color") as HTMLInputElement).value).toBe("#0000ff");
     expect(
       view.getByLabelText(/Virtual AK820 Pro lighting preview/).getAttribute("aria-label"),
-    ).toContain("#0a84ff");
+    ).toContain("#0000ff");
   });
 
   test("uses the AK820 Pro 1 through 5 preset levels and allows RGB steady lighting", async () => {
@@ -118,15 +116,13 @@ describe("LightingPanel", () => {
   test("preserves the per-key draft when switching modes", async () => {
     const view = await renderPanel();
     fireEvent.click(view.getByRole("button", { name: "Per-key" }));
-    fireEvent.change(view.getByLabelText("Custom paint color"), { target: { value: "#123456" } });
-    fireEvent.click(view.getByRole("button", { name: "Q, LED 33" }));
+    fireEvent.input(view.getByLabelText("Custom paint color"), { target: { value: "#123456" } });
+    fireEvent.click(view.getByRole("button", { name: "Q" }));
 
     fireEvent.click(view.getByRole("button", { name: "Effects" }));
     fireEvent.click(view.getByRole("button", { name: "Per-key" }));
 
-    expect(view.getByRole("button", { name: "Q, LED 33" }).getAttribute("style")).toContain(
-      "#123456",
-    );
+    expect(view.getByRole("button", { name: "Q" }).getAttribute("style")).toContain("#123456");
   });
 
   test("stops live per-key streaming when switching to effects", async () => {
@@ -176,9 +172,9 @@ describe("LightingPanel", () => {
     selectEffect(view, "Breath");
     const preview = view.getByLabelText(/Virtual AK820 Pro lighting preview/);
 
-    fireEvent.change(view.getByLabelText("Speed"), { target: { value: "1" } });
+    fireEvent.input(view.getByLabelText("Speed"), { target: { value: "1" } });
     expect(preview.getAttribute("style")).toContain("--effect-speed: 2.4s");
-    fireEvent.change(view.getByLabelText("Speed"), { target: { value: "5" } });
+    fireEvent.input(view.getByLabelText("Speed"), { target: { value: "5" } });
     expect(preview.getAttribute("style")).toContain("--effect-speed: 0.8s");
   });
 
@@ -195,7 +191,9 @@ describe("LightingPanel", () => {
     const controller = new MockDeviceController({ failSendAt: 1 });
     const view = await renderPanel(controller);
     fireEvent.click(view.getByRole("button", { name: "Apply to keyboard" }));
-    await waitFor(() => expect(view.getByRole("status").textContent).toMatch(/Transfer failed/));
+    await waitFor(() =>
+      expect(view.getByRole("status").textContent).toMatch(/Transfer to the keyboard failed/),
+    );
   });
 
   test("marks changes as applied while allowing the same effect to be reapplied", async () => {
@@ -216,9 +214,9 @@ describe("LightingPanel", () => {
     );
     expect(controller.sent).toHaveLength(reportsPerWrite * 2);
 
-    fireEvent.change(view.getByLabelText("Brightness"), { target: { value: "4" } });
+    fireEvent.input(view.getByLabelText("Brightness"), { target: { value: "4" } });
     expect(view.getByRole("button", { name: "Apply to keyboard" })).toBeTruthy();
-    expect(view.getByText("Not applied")).toBeTruthy();
+    expect(view.getByText("Not sent")).toBeTruthy();
   });
 
   test("hides irrelevant controls when lighting is off", async () => {
@@ -233,8 +231,21 @@ describe("LightingPanel", () => {
     fireEvent.change(getByLabelText("Lighting sleep timeout"), { target: { value: "1" } });
     fireEvent.click(getByRole("button", { name: "Apply sleep timeout" }));
     await waitFor(() => expect(controller.sent).toHaveLength(3));
-    expect(controller.sent[2].bytes[7]).toBe(1);
+    expect(controller.sent[2].bytes[8]).toBe(1);
     await waitFor(() => expect(getByText("Sleep timeout applied")).toBeTruthy());
+  });
+
+  test("remembers what was last sent from this browser across visits", async () => {
+    const first = await renderPanel();
+    fireEvent.input(first.getByLabelText("Lighting color"), { target: { value: "#123456" } });
+    fireEvent.click(first.getByRole("button", { name: "Apply to keyboard" }));
+    await waitFor(() => expect(first.getByText(/Lighting applied · Static/)).toBeTruthy());
+    first.unmount();
+
+    const view = await renderPanel();
+    expect((view.getByLabelText("Lighting color") as HTMLInputElement).value).toBe("#123456");
+    expect(view.getByText("Last sent")).toBeTruthy();
+    expect(view.getByRole("button", { name: "Reapply to keyboard" })).toBeTruthy();
   });
 });
 
@@ -242,3 +253,19 @@ function selectEffect(view: Awaited<ReturnType<typeof renderPanel>>, name: strin
   fireEvent.click(view.getByLabelText("Lighting effect"));
   fireEvent.click(view.getByRole("button", { name }));
 }
+
+describe("LightingPanel effect switching", () => {
+  test("does not carry a direction chosen for one effect into another", async () => {
+    const { controller, ...view } = await renderPanel();
+    selectEffect(view, "Rolling");
+    fireEvent.change(view.getByLabelText("Direction"), { target: { value: "3" } });
+    selectEffect(view, "Falling");
+    expect(view.getByLabelText(/Virtual AK820 Pro lighting preview/).className).not.toContain(
+      "is-reversed",
+    );
+
+    fireEvent.click(view.getByRole("button", { name: "Apply to keyboard" }));
+    await waitFor(() => expect(controller.sent).toHaveLength(8));
+    expect(controller.sent[2].bytes[11]).toBe(0); // direction offset
+  });
+});

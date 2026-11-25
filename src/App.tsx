@@ -1,12 +1,12 @@
-import { useMemo, useState } from "react";
+import type { ComponentType } from "preact";
+import { useEffect, useMemo, useState } from "preact/hooks";
 import { DeviceSessionProvider, useDeviceSession } from "./device/DeviceSession";
-import { UnsupportedBrowser } from "./ui/UnsupportedBrowser";
+import { WebHIDDeviceController } from "./device/webhid-controller";
 import { ConnectPanel } from "./ui/ConnectPanel";
-import { TimeSyncPanel } from "./ui/TimeSyncPanel";
 import { ImagePanel } from "./ui/ImagePanel";
 import { LightingPanel } from "./ui/LightingPanel";
-import { WebHIDDeviceController } from "./device/webhid-controller";
-import { EffectTestingPanel } from "./ui/EffectTestingPanel";
+import { TimeSyncPanel } from "./ui/TimeSyncPanel";
+import { UnsupportedBrowser } from "./ui/UnsupportedBrowser";
 
 export default function App() {
   const supported = useMemo(() => typeof navigator !== "undefined" && "hid" in navigator, []);
@@ -55,11 +55,14 @@ const BASE_WORKSPACES: {
   },
 ];
 
-const DEFAULT_SHOW_TESTING = import.meta.env.VITE_SHOW_HARDWARE_TESTING !== "false";
+// The Testing workspace writes effects to the keyboard as part of a guided
+// hardware sweep. It is a contributor tool, so production builds hide it
+// unless explicitly enabled.
+const DEFAULT_SHOW_TESTING = import.meta.env.VITE_SHOW_HARDWARE_TESTING === "true";
 
 export function Configurator({ showTesting = DEFAULT_SHOW_TESTING }: { showTesting?: boolean }) {
   const [workspace, setWorkspace] = useState<Workspace>("lighting");
-  const { health } = useDeviceSession();
+  const { connected } = useDeviceSession();
   const workspaces = showTesting
     ? BASE_WORKSPACES
     : BASE_WORKSPACES.filter((item) => item.id !== "testing");
@@ -84,12 +87,12 @@ export function Configurator({ showTesting = DEFAULT_SHOW_TESTING }: { showTesti
           </div>
           <button
             type="button"
-            className={`connection-pill health-${health}`}
+            className={`connection-pill health-${connected ? "connected" : "disconnected"}`}
             onClick={() => setWorkspace("device")}
-            aria-label={`${healthText(health)}. Open device settings.`}
+            aria-label={`${connectionText(connected)}. Open device settings.`}
           >
             <span className="device-health-dot" aria-hidden="true" />
-            <span className="connection-label">{healthText(health)}</span>
+            <span className="connection-label">{connectionText(connected)}</span>
           </button>
         </div>
       </header>
@@ -122,7 +125,7 @@ export function Configurator({ showTesting = DEFAULT_SHOW_TESTING }: { showTesti
           <div className="workspace-content" key={workspace}>
             {workspace === "lighting" && <LightingPanel />}
             {workspace === "display" && <ImagePanel />}
-            {workspace === "testing" && showTesting && <EffectTestingPanel />}
+            {workspace === "testing" && showTesting && <TestingWorkspace />}
             {workspace === "device" && (
               <div className="device-workspace">
                 <ConnectPanel />
@@ -149,6 +152,24 @@ export function Configurator({ showTesting = DEFAULT_SHOW_TESTING }: { showTesti
   );
 }
 
+/**
+ * The Testing workspace is a contributor tool that production hides, so it is
+ * split into its own chunk and only downloaded when someone opens it.
+ */
+function TestingWorkspace() {
+  const [Panel, setPanel] = useState<ComponentType | null>(null);
+  useEffect(() => {
+    let active = true;
+    void import("./ui/EffectTestingPanel").then(({ EffectTestingPanel }) => {
+      if (active) setPanel(() => EffectTestingPanel);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+  return Panel ? <Panel /> : <p className="inline-status">Loading testing tools…</p>;
+}
+
 function WorkspaceIcon({ workspace }: { workspace: Workspace }) {
   return (
     <svg className="workspace-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -168,11 +189,6 @@ function WorkspaceIcon({ workspace }: { workspace: Workspace }) {
   );
 }
 
-function healthText(health: ReturnType<typeof useDeviceSession>["health"]): string {
-  switch (health) {
-    case "disconnected":
-      return "Not connected";
-    case "connected":
-      return "Keyboard connected";
-  }
+function connectionText(connected: boolean): string {
+  return connected ? "Keyboard connected" : "Not connected";
 }

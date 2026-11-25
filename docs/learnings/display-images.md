@@ -15,16 +15,17 @@ RGB565 has no alpha channel. Transparent pixels become black.
 
 ## Browser pipeline
 
-1. Decode static images with `createImageBitmap`, GIFs with `gifuct-js`, and
-   animated WebP with `ImageDecoder`.
-2. Aspect-fit without cropping.
-3. Pad opaque images with a quantized dominant color.
-4. Preserve transparency during composition, then flatten it to black.
-5. Convert the finished RGBA frame to RGB565.
+1. Decode static images with `createImageBitmap`, and animated GIF and WebP
+   with WebCodecs `ImageDecoder`, which returns fully composited frames
+   (transparency and all GIF disposal methods included).
+2. Aspect-fit without cropping, averaging up to 4 × 4 samples per pixel.
+3. Pad opaque images with a quantized dominant color, chosen once per file.
+4. Flatten transparency to black.
+5. Convert the finished RGBA frame to RGB565 with 4 × 4 ordered dithering.
 
-GIF composition honors keep-canvas, restore-background, and restore-previous
-disposal methods. Size and decoded-pixel limits are enforced before expensive
-work to protect the browser tab.
+File size, header dimensions, and frame counts are checked before decoding to
+protect the browser tab. Decoding is frame by frame, so no step holds every
+frame's pixels at once.
 
 The enforced input limits are part of the browser-safety boundary and should
 stay aligned with `src/image/static.ts`, `src/image/animated.ts`, and
@@ -35,9 +36,8 @@ stay aligned with `src/image/static.ts`, `src/image/animated.ts`, and
 | Static file | 10 MiB |
 | Animated file | 20 MiB |
 | One multi-file selection | 50 MiB and 255 files |
-| Animated canvas or frame descriptor | 2048 × 2048 px |
+| Animated canvas or decoded frame | 2048 × 2048 px |
 | Decoded animation | 255 frames |
-| GIF patch pixels before decompression | 50 million total |
 
 An animated selection can reach the 255-frame limit before the 255-file limit.
 Validate the accumulated frame count after each decoded file so later files

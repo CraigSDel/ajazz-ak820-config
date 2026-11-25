@@ -1,6 +1,4 @@
-import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
-// biome-ignore lint/correctness/noUnusedImports: required by this test file's classic JSX transform
-import React from "react";
+import { cleanup, fireEvent, render, waitFor } from "@testing-library/preact";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { DeviceSessionProvider } from "../../device/DeviceSession";
 import { MockDeviceController } from "../../device/mock-controller";
@@ -11,6 +9,19 @@ import { LightingPanel } from "../LightingPanel";
 afterEach(cleanup);
 
 describe("EffectTestingPanel", () => {
+  test("never writes to the keyboard just by being opened", async () => {
+    const controller = new MockDeviceController();
+    await controller.connect();
+    const view = render(
+      <DeviceSessionProvider controller={controller}>
+        <EffectTestingPanel />
+      </DeviceSessionProvider>,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(controller.sent).toHaveLength(0);
+    expect(view.getByRole("button", { name: "Apply to keyboard" })).toBeTruthy();
+  });
+
   const clipboardWrite = vi.fn().mockResolvedValue(undefined);
 
   beforeEach(() => {
@@ -36,17 +47,16 @@ describe("EffectTestingPanel", () => {
 
     const testingController = new MockDeviceController();
     await testingController.connect();
-    render(
+    const testing = render(
       <DeviceSessionProvider controller={testingController}>
         <EffectTestingPanel />
       </DeviceSessionProvider>,
     );
+    fireEvent.click(testing.getByRole("button", { name: "Apply to keyboard" }));
     await waitFor(() => expect(testingController.sent).toHaveLength(8));
 
-    expect(
-      testingController.sent.map(({ reportId, bytes }) => ({ reportId, bytes: [...bytes] })),
-    ).toEqual(
-      lightingController.sent.map(({ reportId, bytes }) => ({ reportId, bytes: [...bytes] })),
+    expect(testingController.sent.map(({ kind, bytes }) => ({ kind, bytes: [...bytes] }))).toEqual(
+      lightingController.sent.map(({ kind, bytes }) => ({ kind, bytes: [...bytes] })),
     );
   });
 
@@ -60,10 +70,15 @@ describe("EffectTestingPanel", () => {
       </DeviceSessionProvider>,
     );
 
-    fireEvent.change(view.getByLabelText("Note · required for Wrong effect"), {
+    const works = view.getByRole("button", { name: /Works/ }) as HTMLButtonElement;
+    // Results can't be recorded for an effect that was never shown.
+    expect(works.disabled).toBe(true);
+    fireEvent.click(view.getByRole("button", { name: "Apply to keyboard" }));
+    await waitFor(() => expect(controller.sent).toHaveLength(8));
+
+    fireEvent.input(view.getByLabelText("Note · required for Wrong effect"), {
       target: { value: "steady red" },
     });
-    const works = view.getByRole("button", { name: /Works/ }) as HTMLButtonElement;
     await waitFor(() => expect(works.disabled).toBe(false));
     fireEvent.click(works);
 
@@ -76,11 +91,9 @@ describe("EffectTestingPanel", () => {
     fireEvent.click(view.getByRole("button", { name: "Copy report to clipboard" }));
     await waitFor(() => expect(clipboardWrite).toHaveBeenCalledWith(report.value));
 
-    await waitFor(() =>
-      expect(view.getByRole("heading", { name: "Single Key On" })).toBeTruthy(),
-    );
+    await waitFor(() => expect(view.getByRole("heading", { name: "Single Key On" })).toBeTruthy());
     await waitFor(() => expect(controller.sent).toHaveLength(16));
-    expect(controller.sent.at(-2)?.reportId).toBe(LightingMode.Effect2);
+    expect(controller.sent.at(-2)?.bytes[0]).toBe(LightingMode.SingleKeyOn);
   });
 
   test("reattempts the selected RGB effect and records it in the exported result", async () => {
@@ -93,17 +106,18 @@ describe("EffectTestingPanel", () => {
       </DeviceSessionProvider>,
     );
 
+    fireEvent.click(view.getByRole("button", { name: "Apply to keyboard" }));
     await waitFor(() => expect(controller.sent).toHaveLength(8));
-    const reattempt = view.getByRole("button", { name: "Reattempt RGB" }) as HTMLButtonElement;
+    const reattempt = (await view.findByRole("button", {
+      name: "Reattempt RGB",
+    })) as HTMLButtonElement;
     await waitFor(() => expect(reattempt.disabled).toBe(false));
     fireEvent.click(reattempt);
 
     await waitFor(() => expect(controller.sent).toHaveLength(16));
     const report = view.getByLabelText("Current test report") as HTMLTextAreaElement;
     await waitFor(() =>
-      expect(report.value).toContain(
-        "Protocol effect 1 / Static: Untested — RGB reapplied 1 time",
-      ),
+      expect(report.value).toContain("Protocol effect 1 / Static: Untested — RGB reapplied 1 time"),
     );
 
     await waitFor(() => expect(reattempt.disabled).toBe(false));

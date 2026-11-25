@@ -1,42 +1,37 @@
-import { CHUNK_SIZE } from "./constants";
-import type { ReportMessage } from "./types";
+import { CHUNK_SIZE, RGB565_FRAME_BYTES } from "./constants";
+import { Command, commandPacket, type Packet } from "./packet";
 
-// AKS075/Windows-driver framing used by AK820 Pro firmware.
-const CONTROL_LEAD = 0x04;
-const CMD_START = 0x18;
-const CMD_IMAGE = 0x72;
-const CMD_SAVE = 0x02;
+// AKS075/Windows-driver framing used by AK820 Pro firmware:
+// START (no enable flag) → IMAGE_CFG (sub 3, chunk count) → chunks → SAVE.
 const IMAGE_CFG_SUBCOMMAND = 0x03;
-const PAYLOAD_LENGTH = 63; // 64-byte packet minus reportId byte
-const RGB565_FRAME_BYTES = 128 * 128 * 2; // 32768
 const FRAME_HEADER_BYTES = 256;
 
-export function buildImageStartReport(): ReportMessage {
-  const bytes = new Uint8Array(PAYLOAD_LENGTH);
-  bytes[0] = CMD_START;
-  // bytes[7] = 0 (AKS075 sends enable=false for image transfer)
-  return { reportId: CONTROL_LEAD, bytes };
+/** Every data chunk is acknowledged with an input report starting with these bytes. */
+export const IMAGE_ACK_PREFIX = [0x01, 0x5a, 0x02, 0x00] as const;
+
+export function isImageAcknowledgement(data: DataView): boolean {
+  if (data.byteLength < IMAGE_ACK_PREFIX.length) return false;
+  return IMAGE_ACK_PREFIX.every((byte, index) => data.getUint8(index) === byte);
 }
 
-export function buildImageCfgReport(chunkCount: number): ReportMessage {
+export function buildImageStartPacket(): Packet {
+  return commandPacket(Command.Start);
+}
+
+export function buildImageCfgPacket(chunkCount: number): Packet {
   if (!Number.isInteger(chunkCount) || chunkCount < 1 || chunkCount > 0xffff) {
     throw new Error(
-      `buildImageCfgReport: chunk count must be a uint16 in [1, 0xFFFF], got ${chunkCount}`,
+      `buildImageCfgPacket: chunk count must be a uint16 in [1, 0xFFFF], got ${chunkCount}`,
     );
   }
-  const bytes = new Uint8Array(PAYLOAD_LENGTH);
-  bytes[0] = CMD_IMAGE;
-  bytes[1] = IMAGE_CFG_SUBCOMMAND;
-  bytes[7] = chunkCount & 0xff;
-  bytes[8] = (chunkCount >> 8) & 0xff;
-  return { reportId: CONTROL_LEAD, bytes };
+  const packet = commandPacket(Command.Image, { sub: IMAGE_CFG_SUBCOMMAND });
+  packet[8] = chunkCount & 0xff;
+  packet[9] = (chunkCount >> 8) & 0xff;
+  return packet;
 }
 
-export function buildImageSaveReport(): ReportMessage {
-  const bytes = new Uint8Array(PAYLOAD_LENGTH);
-  bytes[0] = CMD_SAVE;
-  // bytes[7] = 0 (AKS075 SAVE has no enable flag)
-  return { reportId: CONTROL_LEAD, bytes };
+export function buildImageSavePacket(): Packet {
+  return commandPacket(Command.Save);
 }
 
 export function buildImageDataChunks(

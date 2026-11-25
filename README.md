@@ -23,7 +23,7 @@ with the 128 × 128 TFT display**.
 | --- | --- |
 | Keyboard | Original AK820 Pro TFT (`VID 0x0c45`, `PID 0x8009`) |
 | Connection | USB-C cable with the keyboard in wired mode |
-| Browser | Chrome, Edge, Opera, or Arc (Chromium 89+) |
+| Browser | Chrome, Edge, Opera, or Arc (Chromium 94+) |
 | Operating system | Windows, macOS, or Linux |
 
 Safari and Firefox do not support WebHID. Bluetooth and the 2.4 GHz receiver do
@@ -44,22 +44,27 @@ V2, and Sonix-based models—are not supported.
      lighting sleep timer.
    - **Display** uploads a static image, animated image, or ordered image
      sequence to the TFT screen.
-   - **Device** manages the USB connection and synchronises the TFT clock.
-   - **Testing** contains experimental tools for validating lighting effects on
-     physical hardware.
+   - **Device** manages the USB connection and synchronises the TFT clock. By
+     default the clock is synced automatically each time the keyboard connects.
 
 Changes are written directly to the keyboard. There is no account, cloud
 service, or AJAZZ desktop driver involved.
 
 ## What works
 
-- Synchronise the TFT clock with the computer's system time.
-- Upload PNG, JPEG, WebP, animated GIF, and animated WebP images.
+- Synchronise the TFT clock with the computer's system time, automatically on
+  connect or on demand.
+- Upload PNG, JPEG, WebP, animated GIF, and animated WebP images, by choosing or
+  dropping files. Images can be previewed before a keyboard is connected, and an
+  upload can be cancelled before the keyboard saves it.
 - Upload ordered multi-image sequences.
 - Configure preset RGB effects, colour, brightness, speed, rainbow mode, and
   direction.
 - Preview lighting effects on an approximate keyboard layout.
 - Set the lighting sleep timeout.
+- Remember the last lighting and sleep settings sent from this browser. The
+  keyboard cannot report its current settings, so the app labels them
+  **Last sent** rather than claiming they are what the keyboard is using.
 - Paint live per-key RGB colours with fill and clear tools (experimental).
 
 Key remapping and macro recording are not implemented because their device
@@ -72,20 +77,35 @@ protocols and safe restoration paths have not yet been confirmed.
 | Static PNG, JPEG, or WebP | 10 MB |
 | Animated GIF or WebP | 20 MB, 2048 × 2048 px, 255 frames |
 | One multi-file selection | 50 MB and 255 files total |
-| Decoded GIF patch pixels | 50 million |
 | Keyboard display | 128 × 128 px, RGB565 colour |
 
 Images are scaled to fit without cropping. Opaque images use a detected
 dominant colour for padding; images with transparency use black because the
-display format has no alpha channel. Some colour reduction is expected after
-conversion to RGB565.
+display format has no alpha channel. Stills and animation frames share one
+supersampling resizer, and ordered dithering hides most banding when colours
+are reduced to RGB565. Animations keep one border colour for every frame.
+
+The display stores each frame's delay in 2 ms units up to 510 ms. Longer frames
+are repeated to keep their timing, and the app says so before uploading. GIF
+delays of 10 ms or less play at 100 ms, as they do in browsers.
+
+Animated GIF and WebP files are decoded by the browser's WebCodecs
+`ImageDecoder`, which composites every frame, so the app ships no GIF decoder.
+Size, dimension, and frame-count limits are checked from the file header before
+anything is decoded.
+
+The bundled presets are 128 × 128 WebP files, so they need no scaling and load
+only when the Display workspace opens. Sunset, Orbit, and Aurora are original
+artwork created by [`scripts/generate-presets.mjs`](scripts/generate-presets.mjs).
+Java Duke is the Java mascot, released under the BSD license.
 
 ### Experimental per-key lighting
 
 Custom RGB uses a write-only feature-report transaction recovered from OEM
 driver captures. The keyboard firmware returns to its stored preset unless the
 custom table is continuously streamed, so live RGB runs only while the per-key
-panel is open. Refreshes are scheduled start-to-start so USB transfer time does
+panel is open and the tab is in the foreground (browsers slow timers in
+background tabs). Refreshes are scheduled start-to-start so USB transfer time does
 not create a visible gap. The app cannot read or restore a previous custom
 layout.
 
@@ -158,13 +178,21 @@ stops an older development server from this checkout, and starts on port 5173
 without silently moving to another port. Set `APP_PORT` to choose a different
 port, and pass additional arguments to Vite as usual, such as `./start.sh --host`.
 
-The hardware Testing workspace is shown by default. To hide it, copy
+The hardware Testing workspace is a contributor tool for validating lighting
+effects on physical hardware, and it is hidden by default. To show it, copy
 `.env.example` to `.env.local`, set the following value, and restart the dev
 server:
 
 ```dotenv
-VITE_SHOW_HARDWARE_TESTING=false
+VITE_SHOW_HARDWARE_TESTING=true
 ```
+
+The Testing workspace only writes to the keyboard when you click **Apply to
+keyboard** or record a result and continue.
+
+To regenerate the bundled preset images, install libwebp (for `img2webp`) and
+run `node scripts/generate-presets.mjs`. Regenerating changes their regression
+hashes only if the drawing code changes.
 
 ## Project structure
 
@@ -172,9 +200,10 @@ VITE_SHOW_HARDWARE_TESTING=false
 src/
 ├── device/      WebHID and mock device controllers
 ├── image/       Image decoding, resizing, and RGB565 conversion
-├── lighting/    Lighting effects, colours, and keyboard layout
+├── lighting/    Lighting effects, colours, keyboard layout, last-sent storage
 ├── protocol/    Pure byte-level command builders
-├── ui/          React interface components
+├── styles/      Ordered stylesheet layers imported by index.css
+├── ui/          Preact interface components
 └── operations.ts  High-level device operations
 ```
 

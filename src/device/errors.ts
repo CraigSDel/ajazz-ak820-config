@@ -3,8 +3,9 @@ export type DeviceError =
   | { kind: "no-device-selected" }
   | { kind: "device-disconnected" }
   | { kind: "operation-in-progress"; operation: string }
-  | { kind: "transfer-failed"; reportId: number; cause: unknown }
+  | { kind: "transfer-failed"; command: number; cause: unknown }
   | { kind: "ack-timeout"; chunkIndex: number; totalChunks: number }
+  | { kind: "cancelled"; operation: string }
   | { kind: "validation"; message: string };
 
 export class DeviceFailure extends Error {
@@ -27,10 +28,17 @@ function describe(e: DeviceError): string {
     case "operation-in-progress":
       return `Cannot start while ${e.operation} is in progress.`;
     case "transfer-failed":
-      return `Transfer failed for report 0x${e.reportId.toString(16)}.`;
+      return `Transfer to the keyboard failed (command 0x${e.command.toString(16).padStart(2, "0")}).`;
     case "ack-timeout":
       return `Keyboard did not acknowledge image chunk ${e.chunkIndex + 1} of ${e.totalChunks}. The upload was stopped.`;
+    case "cancelled":
+      return `The ${e.operation} was cancelled.`;
     case "validation":
       return e.message;
   }
+}
+
+/** The command byte of a packet, for error messages: `04 <cmd>` or the data packet's lead byte. */
+export function commandOf(bytes: Uint8Array): number {
+  return bytes[0] === 0x04 ? bytes[1] : (bytes[0] ?? 0);
 }

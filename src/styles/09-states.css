@@ -1,0 +1,11 @@
+/* Interaction states added after the design passes. */
+
+.display-preview.is-drop-target {
+  outline: 2px dashed var(--accent, #0a84ff);
+  outline-offset: -6px;
+  border-radius: 18px;
+}
+
+.time-card .checkbox-label {
+  margin-block: 0.25rem 0.75rem;
+}

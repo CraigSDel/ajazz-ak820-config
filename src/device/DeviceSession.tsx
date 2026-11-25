@@ -1,15 +1,7 @@
-import {
-  createContext,
-  type ReactNode,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type ComponentChildren, createContext } from "preact";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { DeviceFailure } from "./errors";
-import type { DeviceController } from "./types";
+import type { DeviceController, DeviceTransport } from "./types";
 
 export type DeviceOperationName =
   | "time sync"
@@ -17,23 +9,47 @@ export type DeviceOperationName =
   | "lighting"
   | "lighting sleep"
   | "custom RGB";
-export type DeviceHealth = "disconnected" | "connected";
+type ActiveOperation = {
+  id: number;
+  generation: number;
+  name: DeviceOperationName;
+  background: boolean;
+  settled: Promise<void>;
+};
 
-type ActiveOperation = { id: number; generation: number; name: DeviceOperationName };
+export type RunOperationOptions = {
+  /**
+   * Hold the device lock without publishing `activeOperation`. Used by
+   * high-frequency streams (live per-key RGB) so each ~100 ms transfer
+   * doesn't re-render every consumer of the session.
+   */
+  background?: boolean;
+};
 
 export type DeviceSessionValue = {
   controller: DeviceController;
   connected: boolean;
-  health: DeviceHealth;
   lastResponseAt: Date | null;
   activeOperation: DeviceOperationName | null;
   connect(): Promise<void>;
   disconnect(): Promise<void>;
   runOperation<T>(
     name: DeviceOperationName,
-    work: (controller: DeviceController) => Promise<T>,
+    work: (transport: DeviceTransport) => Promise<T>,
+    options?: RunOperationOptions,
   ): Promise<T>;
 };
+
+/** `lastResponseAt` is informational; don't refresh it more often than this. */
+const RESPONSE_TIMESTAMP_INTERVAL_MS = 1000;
+
+/** Operations that leave the keyboard half-written if the page closes mid-way. */
+const UNLOAD_GUARDED_OPERATIONS: ReadonlySet<DeviceOperationName> = new Set([
+  "image upload",
+  "lighting",
+  "lighting sleep",
+  "time sync",
+]);
 
 const DeviceSessionContext = createContext<DeviceSessionValue | null>(null);
 
@@ -42,12 +58,9 @@ export function DeviceSessionProvider({
   children,
 }: {
   controller: DeviceController;
-  children: ReactNode;
+  children: ComponentChildren;
 }) {
   const [connected, setConnected] = useState(controller.isConnected());
-  const [health, setHealth] = useState<DeviceHealth>(
-    controller.isConnected() ? "connected" : "disconnected",
-  );
   const [lastResponseAt, setLastResponseAt] = useState<Date | null>(null);
   const [activeOperation, setActiveOperation] = useState<DeviceOperationName | null>(null);
   const activeRef = useRef<ActiveOperation | null>(null);
@@ -59,16 +72,25 @@ export function DeviceSessionProvider({
     activeRef.current = null;
     setActiveOperation(null);
     setConnected(false);
-    setHealth("disconnected");
     setLastResponseAt(null);
   }, []);
 
   useEffect(() => controller.onDisconnect(clearForDisconnect), [controller, clearForDisconnect]);
 
+  useEffect(() => {
+    if (!activeOperation || !UNLOAD_GUARDED_OPERATIONS.has(activeOperation)) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      // Legacy browsers require returnValue to be set to show the prompt.
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [activeOperation]);
+
   const connect = useCallback(async () => {
     await controller.connect();
     setConnected(controller.isConnected());
-    setHealth(controller.isConnected() ? "connected" : "disconnected");
   }, [controller]);
 
   const disconnect = useCallback(async () => {
@@ -79,10 +101,17 @@ export function DeviceSessionProvider({
   const runOperation = useCallback(
     async <T,>(
       name: DeviceOperationName,
-      work: (controller: DeviceController) => Promise<T>,
+      work: (transport: DeviceTransport) => Promise<T>,
+      { background = false }: RunOperationOptions = {},
     ): Promise<T> => {
       if (!controller.isConnected()) {
         throw new DeviceFailure({ kind: "device-disconnected" });
+      }
+      // A background stream's transfer is short and its loop stops as soon as
+      // the user leaves it, so let a foreground action wait for it to finish
+      // instead of failing with "operation in progress".
+      while (!background && activeRef.current?.background) {
+        await activeRef.current.settled;
       }
       if (activeRef.current) {
         throw new DeviceFailure({
@@ -91,13 +120,18 @@ export function DeviceSessionProvider({
         });
       }
 
+      let settle: () => void = () => {};
       const token: ActiveOperation = {
         id: ++nextOperationId.current,
         generation: generation.current,
         name,
+        background,
+        settled: new Promise<void>((resolve) => {
+          settle = resolve;
+        }),
       };
       activeRef.current = token;
-      setActiveOperation(name);
+      if (!background) setActiveOperation(name);
       const assertActive = () => {
         if (
           token.generation !== generation.current ||
@@ -107,52 +141,20 @@ export function DeviceSessionProvider({
           throw new DeviceFailure({ kind: "device-disconnected" });
         }
       };
-      const operationController: DeviceController = {
-        isConnected: () => {
-          try {
-            assertActive();
-            return true;
-          } catch {
-            return false;
-          }
-        },
-        getIdentity: () => {
+      // Every call re-checks that this operation still owns a live device,
+      // so work from a superseded or disconnected session fails fast.
+      const guarded =
+        <A extends unknown[], R>(call: (...args: A) => R) =>
+        (...args: A): R => {
           assertActive();
-          return controller.getIdentity();
-        },
-        connect: async () => {
-          throw new DeviceFailure({
-            kind: "validation",
-            message: "Cannot connect during a device operation.",
-          });
-        },
-        disconnect: async () => {
-          throw new DeviceFailure({
-            kind: "validation",
-            message: "Cannot disconnect through an operation controller.",
-          });
-        },
-        sendFeatureReport: async (report) => {
-          assertActive();
-          await controller.sendFeatureReport(report);
-        },
-        sendReport: async (report) => {
-          assertActive();
-          await controller.sendReport(report);
-        },
-        receiveFeatureReport: async (reportId) => {
-          assertActive();
-          return controller.receiveFeatureReport(reportId);
-        },
-        waitForDataInputReport: async (timeoutMs) => {
-          assertActive();
-          return controller.waitForDataInputReport(timeoutMs);
-        },
-        clearPendingDataInputReports: () => {
-          assertActive();
-          controller.clearPendingDataInputReports();
-        },
-        onDisconnect: (handler) => controller.onDisconnect(handler),
+          return call(...args);
+        };
+      const operationController: DeviceTransport = {
+        sendFeatureReport: guarded((packet) => controller.sendFeatureReport(packet)),
+        sendReport: guarded((chunk) => controller.sendReport(chunk)),
+        receiveFeatureReport: guarded(() => controller.receiveFeatureReport()),
+        waitForDataInputReport: guarded((ms) => controller.waitForDataInputReport(ms)),
+        clearPendingDataInputReports: guarded(() => controller.clearPendingDataInputReports()),
       };
 
       try {
@@ -161,8 +163,12 @@ export function DeviceSessionProvider({
         }
         const result = await work(operationController);
         assertActive();
-        setHealth("connected");
-        setLastResponseAt(new Date());
+        setLastResponseAt((previous) => {
+          const now = new Date();
+          return previous && now.getTime() - previous.getTime() < RESPONSE_TIMESTAMP_INTERVAL_MS
+            ? previous
+            : now;
+        });
         return result;
       } finally {
         if (
@@ -170,8 +176,9 @@ export function DeviceSessionProvider({
           activeRef.current.generation === token.generation
         ) {
           activeRef.current = null;
-          setActiveOperation(null);
+          if (!background) setActiveOperation(null);
         }
+        settle();
       }
     },
     [controller],
@@ -181,23 +188,13 @@ export function DeviceSessionProvider({
     () => ({
       controller,
       connected,
-      health,
       lastResponseAt,
       activeOperation,
       connect,
       disconnect,
       runOperation,
     }),
-    [
-      controller,
-      connected,
-      health,
-      lastResponseAt,
-      activeOperation,
-      connect,
-      disconnect,
-      runOperation,
-    ],
+    [controller, connected, lastResponseAt, activeOperation, connect, disconnect, runOperation],
   );
 
   return <DeviceSessionContext.Provider value={value}>{children}</DeviceSessionContext.Provider>;

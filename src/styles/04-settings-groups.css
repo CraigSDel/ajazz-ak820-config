@@ -1,0 +1,167 @@
+/* Resilient settings groups ----------------------------------------------------
+   Every block owns its available width and reflows before controls can collide. */
+.panel,
+.settings-card,
+.sleep-section,
+.device-card,
+.display-preview,
+.display-controls,
+.custom-lighting,
+.custom-simple-tools,
+.effect-validation,
+.effect-picker,
+.effect-picker summary,
+.effect-option,
+.control-color,
+.range-control,
+.checkbox-label,
+label {
+  min-inline-size: 0;
+}
+
+.panel p,
+.settings-card p,
+.sleep-section,
+.device-card,
+.display-panel,
+.custom-lighting {
+  overflow-wrap: break-word;
+}
+
+.lighting-editor {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.lighting-controls {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+}
+
+.lighting-controls > *,
+.lighting-apply-bar > span,
+.display-panel > *,
+.device-workspace > *,
+.custom-simple-tools > *,
+.validation-results > * {
+  min-width: 0;
+}
+
+.sleep-section {
+  display: grid;
+  grid-column: 1;
+  grid-row: auto;
+  grid-template-columns: minmax(150px, 1fr) minmax(220px, 0.9fr) max-content;
+  align-items: end;
+  gap: 0.65rem 1rem;
+}
+
+.sleep-section-heading {
+  align-self: center;
+  min-width: 0;
+}
+
+.sleep-section-heading .eyebrow,
+.sleep-section-heading h3 {
+  margin: 0;
+}
+
+.sleep-section-heading h3 {
+  margin-top: 0.15rem;
+}
+
+.sleep-section label,
+.sleep-section select {
+  width: 100%;
+  min-width: 0;
+}
+
+.sleep-section > button {
+  white-space: nowrap;
+}
+
+.sleep-section > .lighting-feedback {
+  grid-column: 1 / -1;
+  margin-top: 0;
+}
+
+.effect-picker small,
+.effect-option small,
+.color-picker-control small,
+.file-control small {
+  white-space: normal;
+}
+
+.validation-results {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+}
+
+.display-panel {
+  align-items: start;
+}
+
+.display-header {
+  flex-wrap: wrap;
+}
+
+.image-presets > div {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.custom-simple-tools {
+  grid-template-columns: minmax(220px, 1fr) minmax(120px, 0.55fr) auto;
+}
+
+@media (max-width: 880px) {
+  .sleep-section {
+    grid-template-columns: minmax(140px, 0.7fr) minmax(200px, 1fr) max-content;
+  }
+
+  .display-panel,
+  .device-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .custom-simple-tools {
+    grid-template-columns: minmax(180px, 1fr) minmax(110px, 0.6fr) auto;
+  }
+}
+
+@media (max-width: 680px) {
+  .lighting-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .control-effect,
+  .effect-behavior,
+  .lighting-apply-bar,
+  .settings-card-heading,
+  .settings-card-feedback {
+    grid-column: 1;
+  }
+
+  .sleep-section {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .sleep-section > .lighting-feedback {
+    grid-column: 1;
+  }
+
+  .sleep-section > button {
+    width: 100%;
+    white-space: normal;
+  }
+
+  .effect-options {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .custom-simple-tools {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .image-presets > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

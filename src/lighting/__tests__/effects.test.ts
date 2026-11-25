@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { LightingMode } from "../../protocol/lighting";
-import { effectForMode, LIGHTING_EFFECTS } from "../effects";
+import { LightingDirection, LightingMode } from "../../protocol/lighting";
+import { configForEffect, EFFECT_SPEED_SECONDS, effectForMode, LIGHTING_EFFECTS } from "../effects";
 
 describe("AK820 lighting effect metadata", () => {
   test("covers off plus every protocol effect ID exactly once", () => {
@@ -10,48 +10,35 @@ describe("AK820 lighting effect metadata", () => {
   });
 
   test("keeps human-facing labels separate from protocol identifiers", () => {
-    expect(effectForMode(LightingMode.Effect1)).toMatchObject({
+    expect(effectForMode(LightingMode.Static)).toMatchObject({
       protocolId: 1,
       displayName: "Static",
-      animation: { id: "steady" },
+      animationId: "steady",
     });
-    expect(effectForMode(LightingMode.Effect15)).toMatchObject({
+    expect(effectForMode(LightingMode.Ripples)).toMatchObject({
       protocolId: 15,
       displayName: "Ripples",
-      animation: { id: "ripple" },
+      animationId: "ripple",
     });
   });
 
-  test("defines a complete, distinct provisional animation profile for every effect", () => {
-    const profiles = LIGHTING_EFFECTS.filter(
-      ({ protocolId }) => protocolId !== LightingMode.Off,
-    ).map(({ animation }) => animation);
-
-    expect(new Set(profiles.map(({ id }) => id)).size).toBe(19);
-    for (const profile of profiles) {
-      expect(profile.speedSeconds).toHaveLength(5);
-      expect(profile.speedSeconds.every((duration) => duration > 0)).toBe(true);
-      expect(profile.calibrated).toBe(false);
-      expect(profile.spatial).toBeTruthy();
-      expect(profile.envelope).toBeTruthy();
-    }
+  test("gives every effect a distinct preview animation", () => {
+    const ids = LIGHTING_EFFECTS.map(({ animationId }) => animationId);
+    expect(new Set(ids).size).toBe(LIGHTING_EFFECTS.length);
+    expect(EFFECT_SPEED_SECONDS).toHaveLength(5);
   });
 
-  test("models the Outward effect as radial propagation from the keyboard center", () => {
-    expect(effectForMode(LightingMode.Effect9).animation).toMatchObject({
-      id: "fountain",
-      spatial: "radial",
-      propagation: "radial",
-    });
+  test("previews the Outward effect with the fountain animation", () => {
+    expect(effectForMode(LightingMode.Outward).animationId).toBe("fountain");
   });
 
   test("fixed-palette effects do not advertise custom colors", () => {
-    expect(effectForMode(LightingMode.Effect6).supportsColor).toBe(false);
-    expect(effectForMode(LightingMode.Effect8).supportsColor).toBe(false);
+    expect(effectForMode(LightingMode.Colourful).supportsColor).toBe(false);
+    expect(effectForMode(LightingMode.SpectrumCycle).supportsColor).toBe(false);
   });
 
   test("offers the palette switch for the provisional steady effect", () => {
-    expect(effectForMode(LightingMode.Effect1).supportsPalette).toBe(true);
+    expect(effectForMode(LightingMode.Static).supportsPalette).toBe(true);
   });
 
   test("keeps catalogue direction metadata in the presentation layer", () => {
@@ -59,11 +46,41 @@ describe("AK820 lighting effect metadata", () => {
       (effect) => effect.protocolId,
     );
     expect(directional).toEqual([
-      LightingMode.Effect10,
-      LightingMode.Effect11,
-      LightingMode.Effect12,
-      LightingMode.Effect16,
-      LightingMode.Effect18,
+      LightingMode.Scrolling,
+      LightingMode.Rolling,
+      LightingMode.Rotating,
+      LightingMode.Flowing,
+      LightingMode.Tilt,
     ]);
+  });
+});
+
+describe("configForEffect", () => {
+  const base = {
+    mode: LightingMode.Rolling,
+    color: { red: 1, green: 2, blue: 3 },
+    rainbow: true,
+    brightness: 5 as const,
+    speed: 3 as const,
+    direction: LightingDirection.Right,
+  };
+
+  test("keeps settings the effect supports", () => {
+    expect(configForEffect(base)).toEqual(base);
+  });
+
+  test("drops a direction and palette chosen for another effect", () => {
+    // Spectrum Cycle has a fixed palette and no direction control.
+    expect(configForEffect({ ...base, mode: LightingMode.SpectrumCycle })).toMatchObject({
+      rainbow: false,
+      direction: LightingDirection.Left,
+    });
+  });
+
+  test("moves to the effect's first direction when the current one is unavailable", () => {
+    // Scrolling offers Up and Down only.
+    expect(configForEffect({ ...base, mode: LightingMode.Scrolling }).direction).toBe(
+      LightingDirection.Up,
+    );
   });
 });

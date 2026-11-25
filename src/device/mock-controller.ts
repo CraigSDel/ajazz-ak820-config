@@ -1,24 +1,21 @@
-import type { ReportMessage } from "../protocol/types";
-import { DeviceFailure } from "./errors";
-import type { DeviceController, SentReport } from "./types";
+import { commandOf, DeviceFailure } from "./errors";
+import type { DeviceController, SentPacket } from "./types";
 
 export class MockDeviceController implements DeviceController {
-  public sent: SentReport[] = [];
-  public receivedFeatureReportIds: number[] = [];
+  public sent: SentPacket[] = [];
+  public featureReads = 0;
   private connected = false;
   private disconnectHandlers = new Set<() => void>();
   private sendCount = 0;
   private readonly options: {
     failSendAt?: number;
     dataAckResponds?: boolean;
-    productId?: number;
   };
 
   constructor(
     options: {
       failSendAt?: number;
       dataAckResponds?: boolean;
-      productId?: number;
     } = {},
   ) {
     this.options = options;
@@ -28,44 +25,28 @@ export class MockDeviceController implements DeviceController {
     return this.connected;
   }
 
-  getIdentity() {
-    return this.connected
-      ? {
-          vendorId: 0x0c45,
-          productId: this.options.productId ?? 0x8009,
-          productName: "Mock AK820 Pro",
-        }
-      : null;
-  }
-
   async connect(): Promise<void> {
     this.connected = true;
   }
 
   async disconnect(): Promise<void> {
     this.connected = false;
-    for (const h of this.disconnectHandlers) h();
+    for (const handler of this.disconnectHandlers) handler();
   }
 
-  async sendFeatureReport(report: ReportMessage): Promise<void> {
+  async sendFeatureReport(packet: Uint8Array): Promise<void> {
+    this.recordSend({ kind: "feature", bytes: packet });
+  }
+
+  async sendReport(chunk: Uint8Array): Promise<void> {
+    this.recordSend({ kind: "output", bytes: chunk });
+  }
+
+  async receiveFeatureReport(): Promise<DataView | null> {
     if (!this.connected) {
       throw new DeviceFailure({ kind: "device-disconnected" });
     }
-    this.recordSend({ ...report, kind: "feature" });
-  }
-
-  async sendReport(report: ReportMessage): Promise<void> {
-    if (!this.connected) {
-      throw new DeviceFailure({ kind: "device-disconnected" });
-    }
-    this.recordSend({ ...report, kind: "output" });
-  }
-
-  async receiveFeatureReport(reportId: number): Promise<DataView | null> {
-    if (!this.connected) {
-      throw new DeviceFailure({ kind: "device-disconnected" });
-    }
-    this.receivedFeatureReportIds.push(reportId);
+    this.featureReads += 1;
     return new DataView(new ArrayBuffer(0));
   }
 
@@ -87,15 +68,18 @@ export class MockDeviceController implements DeviceController {
     };
   }
 
-  private recordSend(report: SentReport): void {
+  private recordSend(packet: SentPacket): void {
+    if (!this.connected) {
+      throw new DeviceFailure({ kind: "device-disconnected" });
+    }
     this.sendCount += 1;
     if (this.sendCount === this.options.failSendAt) {
       throw new DeviceFailure({
         kind: "transfer-failed",
-        reportId: report.reportId,
+        command: commandOf(packet.bytes),
         cause: new Error("Injected mock transfer failure"),
       });
     }
-    this.sent.push(report);
+    this.sent.push(packet);
   }
 }

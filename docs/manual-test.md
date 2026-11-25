@@ -39,8 +39,8 @@ full sweep would add noise rather than isolate the transport problem.
 
 1. Open the **Testing** workspace. If it is hidden, set
    `VITE_SHOW_HARDWARE_TESTING=true` and restart or rebuild.
-2. The current effect applies automatically. Observe the physical keyboard for
-   at least one second.
+2. Select **Apply to keyboard** to send the current effect. Observe the
+   physical keyboard for at least one second.
 3. Record the visible motion, palette behavior, and whether color, speed, and
    direction controls visibly change it. For reactive-looking effects, press
    several physical keys.

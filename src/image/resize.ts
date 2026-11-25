@@ -8,6 +8,18 @@ export type ContainRect = {
 
 export type RgbColor = readonly [red: number, green: number, blue: number];
 
+type Bounds = Pick<ContainRect, "x" | "y" | "width" | "height">;
+
+/** The whole pixels fully inside `bounds`, clipped to the image. End values are exclusive. */
+function pixelRange(bounds: Bounds, width: number, height: number) {
+  return {
+    startX: Math.max(0, Math.ceil(bounds.x)),
+    startY: Math.max(0, Math.ceil(bounds.y)),
+    endX: Math.min(width, Math.floor(bounds.x + bounds.width)),
+    endY: Math.min(height, Math.floor(bounds.y + bounds.height)),
+  };
+}
+
 export function calculateContainRect(
   sourceWidth: number,
   sourceHeight: number,
@@ -35,27 +47,26 @@ export function findDominantColor(
   source: Uint8ClampedArray,
   sourceWidth: number,
   sourceHeight: number,
-  bounds: Pick<ContainRect, "x" | "y" | "width" | "height"> = {
+  bounds: Bounds = {
     x: 0,
     y: 0,
     width: sourceWidth,
     height: sourceHeight,
   },
 ): RgbColor {
+  // 5 bits per channel, so 32 levels each.
   const bucketCount = 32 * 32 * 32;
   const counts = new Uint32Array(bucketCount);
   const redSums = new Uint32Array(bucketCount);
   const greenSums = new Uint32Array(bucketCount);
   const blueSums = new Uint32Array(bucketCount);
-  const startX = Math.max(0, Math.ceil(bounds.x));
-  const startY = Math.max(0, Math.ceil(bounds.y));
-  const endX = Math.min(sourceWidth, Math.floor(bounds.x + bounds.width));
-  const endY = Math.min(sourceHeight, Math.floor(bounds.y + bounds.height));
+  const { startX, startY, endX, endY } = pixelRange(bounds, sourceWidth, sourceHeight);
 
   let dominantBucket = 0;
   for (let y = startY; y < endY; y++) {
     for (let x = startX; x < endX; x++) {
       const offset = (y * sourceWidth + x) * 4;
+      // Ignore mostly transparent pixels; they aren't part of the visible image.
       if (source[offset + 3] < 128) continue;
       const red = source[offset];
       const green = source[offset + 1];
@@ -82,7 +93,7 @@ export function fillContainPadding(
   destination: Uint8ClampedArray,
   destinationWidth: number,
   destinationHeight: number,
-  rect: Pick<ContainRect, "x" | "y" | "width" | "height">,
+  rect: Bounds,
   color: RgbColor,
 ): void {
   for (let y = 0; y < destinationHeight; y++) {
@@ -110,17 +121,14 @@ export function containsTransparency(
   source: Uint8ClampedArray,
   sourceWidth: number,
   sourceHeight: number,
-  bounds: Pick<ContainRect, "x" | "y" | "width" | "height"> = {
+  bounds: Bounds = {
     x: 0,
     y: 0,
     width: sourceWidth,
     height: sourceHeight,
   },
 ): boolean {
-  const startX = Math.max(0, Math.ceil(bounds.x));
-  const startY = Math.max(0, Math.ceil(bounds.y));
-  const endX = Math.min(sourceWidth, Math.floor(bounds.x + bounds.width));
-  const endY = Math.min(sourceHeight, Math.floor(bounds.y + bounds.height));
+  const { startX, startY, endX, endY } = pixelRange(bounds, sourceWidth, sourceHeight);
   for (let y = startY; y < endY; y++) {
     for (let x = startX; x < endX; x++) {
       if (source[(y * sourceWidth + x) * 4 + 3] < 255) return true;
@@ -140,40 +148,114 @@ export function flattenTransparencyOntoBlack(source: Uint8ClampedArray): void {
   }
 }
 
-/** Aspect-preserving nearest-neighbour resize with dominant-color padding. */
-export function containResizeRgba(
+const BLACK: RgbColor = [0, 0, 0];
+
+/** Upper bound on samples per axis for each destination pixel when downscaling. */
+const MAX_SAMPLES_PER_AXIS = 4;
+
+/**
+ * Supersampled contain-resize. Each destination pixel averages an up-to 4×4
+ * grid of samples across its source footprint (alpha-weighted, so transparent
+ * pixels don't darken edges). Upscaling falls back to nearest-neighbour, which
+ * keeps pixel art crisp. The bounded sample count keeps large animations
+ * fast: cost is O(destination pixels), independent of source size.
+ */
+function resampleContain(
   source: Uint8ClampedArray,
   sourceWidth: number,
   sourceHeight: number,
   destinationWidth: number,
   destinationHeight: number,
+  rect: ContainRect,
 ): Uint8ClampedArray {
-  const rect = calculateContainRect(sourceWidth, sourceHeight, destinationWidth, destinationHeight);
   const destination = new Uint8ClampedArray(destinationWidth * destinationHeight * 4);
-  const sourceContainsTransparency = containsTransparency(source, sourceWidth, sourceHeight);
+  const samples = Math.min(MAX_SAMPLES_PER_AXIS, Math.max(1, Math.ceil(1 / rect.scale)));
+  const footprint = 1 / rect.scale;
+  const sampleCount = samples * samples;
 
   for (let y = 0; y < destinationHeight; y++) {
-    const sourceY = Math.floor((y + 0.5 - rect.y) / rect.scale);
-    if (sourceY < 0 || sourceY >= sourceHeight) continue;
+    const centerY = y + 0.5;
+    if (centerY < rect.y || centerY >= rect.y + rect.height) continue;
+    const sourceTop = (y - rect.y) / rect.scale;
 
     for (let x = 0; x < destinationWidth; x++) {
-      const sourceX = Math.floor((x + 0.5 - rect.x) / rect.scale);
-      if (sourceX < 0 || sourceX >= sourceWidth) continue;
+      const centerX = x + 0.5;
+      if (centerX < rect.x || centerX >= rect.x + rect.width) continue;
+      const sourceLeft = (x - rect.x) / rect.scale;
 
-      const sourceOffset = (sourceY * sourceWidth + sourceX) * 4;
+      let red = 0;
+      let green = 0;
+      let blue = 0;
+      let alpha = 0;
+      for (let row = 0; row < samples; row++) {
+        const sampleY = clampIndex(
+          Math.floor(sourceTop + ((row + 0.5) * footprint) / samples),
+          sourceHeight,
+        );
+        for (let column = 0; column < samples; column++) {
+          const sampleX = clampIndex(
+            Math.floor(sourceLeft + ((column + 0.5) * footprint) / samples),
+            sourceWidth,
+          );
+          const offset = (sampleY * sourceWidth + sampleX) * 4;
+          const sampleAlpha = source[offset + 3];
+          red += source[offset] * sampleAlpha;
+          green += source[offset + 1] * sampleAlpha;
+          blue += source[offset + 2] * sampleAlpha;
+          alpha += sampleAlpha;
+        }
+      }
+
       const destinationOffset = (y * destinationWidth + x) * 4;
-      destination[destinationOffset] = source[sourceOffset];
-      destination[destinationOffset + 1] = source[sourceOffset + 1];
-      destination[destinationOffset + 2] = source[sourceOffset + 2];
-      destination[destinationOffset + 3] = source[sourceOffset + 3];
+      if (alpha > 0) {
+        destination[destinationOffset] = Math.round(red / alpha);
+        destination[destinationOffset + 1] = Math.round(green / alpha);
+        destination[destinationOffset + 2] = Math.round(blue / alpha);
+        destination[destinationOffset + 3] = Math.round(alpha / sampleCount);
+      }
     }
   }
-
-  if (sourceContainsTransparency) {
-    flattenTransparencyOntoBlack(destination);
-  } else {
-    const dominantColor = findDominantColor(destination, destinationWidth, destinationHeight, rect);
-    fillContainPadding(destination, destinationWidth, destinationHeight, rect, dominantColor);
-  }
   return destination;
+}
+
+function clampIndex(value: number, length: number): number {
+  return value < 0 ? 0 : value >= length ? length - 1 : value;
+}
+
+export type ContainResult = {
+  rgba: Uint8ClampedArray;
+  /** Padding colour that was applied; reuse it to keep animation borders stable. */
+  padding: RgbColor;
+};
+
+/**
+ * Aspect-preserving resize onto an opaque destination. Without an explicit
+ * `padding`, images with transparency are padded black (RGB565 has no alpha)
+ * and opaque images use their dominant colour.
+ */
+export function containResize(
+  source: Uint8ClampedArray,
+  sourceWidth: number,
+  sourceHeight: number,
+  destinationWidth: number,
+  destinationHeight: number,
+  padding?: RgbColor,
+): ContainResult {
+  const rect = calculateContainRect(sourceWidth, sourceHeight, destinationWidth, destinationHeight);
+  const rgba = resampleContain(
+    source,
+    sourceWidth,
+    sourceHeight,
+    destinationWidth,
+    destinationHeight,
+    rect,
+  );
+  const chosen =
+    padding ??
+    (containsTransparency(source, sourceWidth, sourceHeight)
+      ? BLACK
+      : findDominantColor(rgba, destinationWidth, destinationHeight, rect));
+  flattenTransparencyOntoBlack(rgba);
+  fillContainPadding(rgba, destinationWidth, destinationHeight, rect, chosen);
+  return { rgba, padding: chosen };
 }

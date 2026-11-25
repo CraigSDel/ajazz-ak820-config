@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { type DeviceHealth, useDeviceSession } from "../device/DeviceSession";
+import { useState } from "preact/hooks";
+import { useDeviceSession } from "../device/DeviceSession";
+import { errorMessage } from "./text";
 
 export function ConnectPanel() {
-  const { connected, health, lastResponseAt, activeOperation, connect, disconnect } =
-    useDeviceSession();
+  const { connected, lastResponseAt, activeOperation, connect, disconnect } = useDeviceSession();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,8 +16,8 @@ export function ConnectPanel() {
       } else {
         await connect();
       }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Connection failed");
+    } catch (error) {
+      setError(errorMessage(error, "Connection failed"));
     } finally {
       setBusy(false);
     }
@@ -34,11 +34,15 @@ export function ConnectPanel() {
           <h2>Connection</h2>
         </div>
       </div>
-      <div className={`device-health health-${health}`} role="status" aria-live="polite">
+      <div
+        className={`device-health health-${connected ? "connected" : "disconnected"}`}
+        role="status"
+        aria-live="polite"
+      >
         <span className="device-health-dot" aria-hidden="true" />
         <span>
-          <strong>{healthLabel(health)}</strong>
-          {health === "connected" && lastResponseAt && (
+          <strong>{connected ? "USB interfaces open" : "Not connected"}</strong>
+          {connected && lastResponseAt && (
             <small>Last successful command {lastResponseAt.toLocaleTimeString()}</small>
           )}
         </span>
@@ -67,13 +71,4 @@ export function ConnectPanel() {
       )}
     </section>
   );
-}
-
-function healthLabel(health: DeviceHealth): string {
-  switch (health) {
-    case "disconnected":
-      return "Not connected";
-    case "connected":
-      return "USB interfaces open";
-  }
 }

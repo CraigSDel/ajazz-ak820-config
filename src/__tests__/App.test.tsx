@@ -1,6 +1,4 @@
-// biome-ignore lint/correctness/noUnusedImports: required by this test file's classic JSX transform
-import React from "react";
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { cleanup, fireEvent, render } from "@testing-library/preact";
 import { afterEach, describe, expect, test } from "vitest";
 import { Configurator } from "../App";
 import { DeviceSessionProvider } from "../device/DeviceSession";
@@ -8,10 +6,10 @@ import { MockDeviceController } from "../device/mock-controller";
 
 afterEach(cleanup);
 
-function renderConfigurator() {
+function renderConfigurator(showTesting = true) {
   return render(
     <DeviceSessionProvider controller={new MockDeviceController()}>
-      <Configurator />
+      <Configurator showTesting={showTesting} />
     </DeviceSessionProvider>,
   );
 }
@@ -24,7 +22,7 @@ describe("Configurator workspace", () => {
     ).toMatch(/use at your own risk/i);
   });
 
-  test("opens on lighting and reveals one task workspace at a time", () => {
+  test("opens on lighting and reveals one task workspace at a time", async () => {
     const view = renderConfigurator();
 
     expect(view.getByRole("heading", { name: "Lighting" })).toBeTruthy();
@@ -36,7 +34,7 @@ describe("Configurator workspace", () => {
 
     fireEvent.click(view.getByRole("button", { name: "Testing: Hardware effect validation" }));
     expect(view.getByRole("heading", { name: "Testing" })).toBeTruthy();
-    expect(view.getByRole("heading", { name: "Static" })).toBeTruthy();
+    expect(await view.findByRole("heading", { name: "Static" })).toBeTruthy();
 
     fireEvent.click(view.getByRole("button", { name: "Device: Connection and time" }));
     expect(view.getByRole("heading", { name: "Device" })).toBeTruthy();
@@ -45,9 +43,14 @@ describe("Configurator workspace", () => {
   });
 
   test("can hide the hardware testing workspace", () => {
+    const view = renderConfigurator(false);
+    expect(view.queryByRole("button", { name: /Testing:/ })).toBeNull();
+  });
+
+  test("hides the hardware testing workspace unless explicitly enabled", () => {
     const view = render(
       <DeviceSessionProvider controller={new MockDeviceController()}>
-        <Configurator showTesting={false} />
+        <Configurator />
       </DeviceSessionProvider>,
     );
     expect(view.queryByRole("button", { name: /Testing:/ })).toBeNull();

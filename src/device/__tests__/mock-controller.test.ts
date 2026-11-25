@@ -5,31 +5,31 @@ describe("MockDeviceController", () => {
   test("records feature reports in order", async () => {
     const ctrl = new MockDeviceController();
     await ctrl.connect();
-    await ctrl.sendFeatureReport({ reportId: 1, bytes: new Uint8Array([0xaa]) });
-    await ctrl.sendFeatureReport({ reportId: 2, bytes: new Uint8Array([0xbb]) });
+    await ctrl.sendFeatureReport(new Uint8Array([0x04, 0xaa]));
+    await ctrl.sendFeatureReport(new Uint8Array([0x04, 0xbb]));
     expect(ctrl.sent).toEqual([
-      { kind: "feature", reportId: 1, bytes: new Uint8Array([0xaa]) },
-      { kind: "feature", reportId: 2, bytes: new Uint8Array([0xbb]) },
+      { kind: "feature", bytes: new Uint8Array([0x04, 0xaa]) },
+      { kind: "feature", bytes: new Uint8Array([0x04, 0xbb]) },
     ]);
   });
 
   test("records output reports separately", async () => {
     const ctrl = new MockDeviceController();
     await ctrl.connect();
-    await ctrl.sendReport({ reportId: 0, bytes: new Uint8Array([0x11]) });
-    expect(ctrl.sent).toEqual([{ kind: "output", reportId: 0, bytes: new Uint8Array([0x11]) }]);
+    await ctrl.sendReport(new Uint8Array([0x11]));
+    expect(ctrl.sent).toEqual([{ kind: "output", bytes: new Uint8Array([0x11]) }]);
   });
 
   test("rejects sends when disconnected", async () => {
     const ctrl = new MockDeviceController();
-    await expect(
-      ctrl.sendFeatureReport({ reportId: 1, bytes: new Uint8Array() }),
-    ).rejects.toMatchObject({ name: "DeviceFailure" });
+    await expect(ctrl.sendFeatureReport(new Uint8Array(64))).rejects.toMatchObject({
+      name: "DeviceFailure",
+    });
   });
 
   test("rejects output sends when disconnected", async () => {
     const ctrl = new MockDeviceController();
-    await expect(ctrl.sendReport({ reportId: 0, bytes: new Uint8Array() })).rejects.toMatchObject({
+    await expect(ctrl.sendReport(new Uint8Array(4096))).rejects.toMatchObject({
       name: "DeviceFailure",
     });
   });

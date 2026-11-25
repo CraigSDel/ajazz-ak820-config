@@ -1,11 +1,10 @@
-// biome-ignore lint/correctness/noUnusedImports: required by this test file's classic JSX transform
-import React from "react";
-import { describe, expect, test, afterEach } from "vitest";
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, render } from "@testing-library/preact";
+import { afterEach, describe, expect, test } from "vitest";
 
 afterEach(cleanup);
-import { MockDeviceController } from "../../device/mock-controller";
+
 import { DeviceSessionProvider } from "../../device/DeviceSession";
+import { MockDeviceController } from "../../device/mock-controller";
 import { ConnectPanel } from "../ConnectPanel";
 
 function renderPanel(controller = new MockDeviceController()) {
@@ -40,6 +39,6 @@ describe("ConnectPanel", () => {
     const { getByRole } = renderPanel(ctrl);
 
     expect(getByRole("status").textContent).toContain("USB interfaces open");
-    expect(ctrl.receivedFeatureReportIds).toHaveLength(0);
+    expect(ctrl.featureReads).toBe(0);
   });
 });

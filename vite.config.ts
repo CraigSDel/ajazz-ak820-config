@@ -1,13 +1,18 @@
 /// <reference types="vitest" />
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-  plugins: [react()],
+  // Preact's automatic JSX runtime: same component model as React at a
+  // fraction of the bundle size.
+  oxc: { jsx: { runtime: "automatic", importSource: "preact" } },
   // CI derives this from the repository name so forks deploy under the
   // correct GitHub Pages project path. Keep the canonical path as the local
   // default so development and previews behave like production.
   base: process.env.BASE_PATH ?? "/ajazz-ak820-config/",
+  // WebHID (Chromium 89) and WebCodecs ImageDecoder (Chromium 94) already
+  // limit the app to Chromium 94+, so don't ship syntax for older browsers.
+  // Presets stay separate files so they only load when Display is opened.
+  build: { target: "chrome94", cssTarget: "chrome94", assetsInlineLimit: 0 },
   // @ts-expect-error -- Vitest 3 bundles its own vite@7, causing a type mismatch
   // with vite@8 in the project. The `test` key is valid at runtime.
   test: {

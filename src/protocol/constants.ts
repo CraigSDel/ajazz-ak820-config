@@ -29,18 +29,14 @@ export const MAX_TFT_FRAMES = 255;
 export const CHUNK_SIZE = 4096;
 
 /**
- * Number of chunks per frame. With 4096-byte chunks, 9 × 4096 = 36864
- * gives 32768 pixel bytes + 4096 padding; 8 × 4096 = 32768 leaves no
- * padding. Keeping 9 to match gohv's per-frame buffer expectation.
+ * Longest per-frame delay the upload header can express: one byte holding
+ * the delay in 2 ms units. Longer holds are made by repeating the frame.
  */
+export const MAX_FRAME_DELAY_MS = 255 * 2;
+
+/** Size of the per-key colour table used by the custom-lighting editor. */
 export const CUSTOM_LED_COUNT = 128;
 
 /** HID usage pages used to disambiguate the AJAZZ vendor interfaces under WebHID. */
 export const CONTROL_USAGE_PAGE = 0xff13;
 export const DATA_USAGE_PAGE = 0xff68;
-
-/** Standard 64-byte feature-report packet length. */
-export const PACKET_LENGTH = 64;
-
-/** Leading byte of every control-channel feature report (acts as the report ID for hidapi). */
-export const CONTROL_REPORT_LEAD_BYTE = 0x04;

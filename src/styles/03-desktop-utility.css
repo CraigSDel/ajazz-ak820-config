@@ -1,0 +1,547 @@
+/* Coherent desktop utility pass -------------------------------------------------
+   Content stays solid and quiet. Material is reserved for the app chrome. */
+:root {
+  --danger: #d70015;
+  --success: #248a3d;
+  --warning: #9a6700;
+
+  --bg: var(--bg-canvas);
+  --surface-1: var(--bg-functional);
+  --surface-2: var(--bg-content);
+  --surface-3: var(--bg-elevated);
+  --border: var(--separator);
+  --text: var(--label-primary);
+  --muted: var(--label-secondary);
+  --accent: var(--tint);
+  --accent-strong: var(--tint-hover);
+  --radius-sm: var(--radius-control);
+  --radius-md: var(--radius-group);
+  --radius-lg: var(--radius-pane);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 4%), 0 12px 32px rgb(0 0 0 / 6%);
+  font:
+    400 100% / 1.45 system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Text",
+    sans-serif;
+}
+
+html,
+body {
+  min-width: 0;
+}
+
+body {
+  background-image: none;
+}
+
+button {
+  min-height: 2.125rem;
+  padding: 0.42rem 0.8rem;
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-control);
+  background: var(--bg-elevated);
+  color: var(--label-primary);
+  font-size: 0.875rem;
+  font-weight: 580;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    opacity 120ms ease,
+    transform 80ms ease;
+}
+
+button:hover:not(:disabled):not(.keyboard-key) {
+  border-color: var(--border-strong);
+  background: color-mix(in srgb, var(--bg-elevated) 82%, var(--label-primary));
+  box-shadow: none;
+}
+
+button:active:not(:disabled):not(.keyboard-key),
+.file-control:active:not(.is-disabled),
+.effect-picker summary:active {
+  transform: scale(0.985);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+.effect-picker summary:focus-visible,
+.file-control:focus-within:not(.is-disabled) {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.app {
+  margin-inline: auto;
+}
+
+.app-header {
+  margin-bottom: 1rem;
+}
+
+.eyebrow {
+  margin-bottom: 0.12rem;
+  font-weight: 650;
+  text-transform: none;
+}
+
+.connection-pill {
+  padding-inline: 0.72rem;
+}
+
+.connection-pill.health-connected {
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+  color: var(--success);
+}
+
+.app-shell {
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 1.5rem;
+}
+
+.workspace-nav small {
+  color: var(--label-secondary);
+  font-size: 0.66rem;
+}
+
+.workspace-nav-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-left: 0.1rem;
+  stroke: var(--label-secondary);
+}
+
+.workspace-nav button.is-active .workspace-nav-icon {
+  stroke: var(--tint);
+}
+
+.workspace-heading {
+  display: block;
+}
+
+.workspace-heading > p {
+  display: block;
+  margin: 0.2rem 0 0;
+  color: var(--label-secondary);
+  font-size: 0.82rem;
+}
+
+.workspace-content {
+  animation: none;
+}
+
+.panel {
+  padding: 1.1rem;
+  border-radius: var(--radius-pane);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.lighting-page-toolbar {
+  border-bottom: 1px solid var(--separator);
+  border-radius: 0;
+  background: transparent;
+}
+
+.lighting-page-toolbar .eyebrow {
+  display: none;
+}
+
+.lighting-page-copy {
+  margin: 0;
+  color: var(--label-secondary);
+  font-size: 0.82rem;
+}
+
+.lighting-mode-switch button {
+  padding: 0.25rem 0.7rem;
+  font-size: 0.78rem;
+}
+
+.lighting-page-toolbar,
+.settings-card,
+.sleep-section,
+.custom-simple-tools {
+  box-shadow: none;
+}
+
+.settings-card-heading,
+.lighting-apply-bar,
+.display-header,
+.custom-lighting-heading,
+.validation-report,
+.subsection {
+  border-color: var(--separator);
+}
+
+.primary-action {
+  border: 0;
+}
+
+.primary-action:hover:not(:disabled) {
+  box-shadow: none;
+}
+
+.secondary-action {
+  border: 0;
+}
+
+.secondary-action:hover:not(:disabled) {
+  border: 0;
+  background: color-mix(in srgb, var(--tint) 17%, transparent);
+}
+
+input,
+select,
+textarea {
+  min-height: 2.125rem;
+  border-radius: var(--radius-control);
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 2.55rem;
+  height: 1.5rem;
+  min-height: 1.5rem;
+}
+
+.checkbox-label input[type="checkbox"]::after {
+  top: 0.125rem;
+  left: 0.125rem;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.checkbox-label input[type="checkbox"]:checked::after {
+  transform: translateX(1.05rem);
+}
+
+.effect-picker summary,
+.color-picker-control,
+.file-control,
+.custom-color-control > span,
+.image-preset {
+  border-color: var(--separator);
+  box-shadow: none;
+}
+
+.effect-behavior,
+.hint,
+.device-health,
+.inline-status,
+.lighting-feedback {
+  color: var(--label-primary);
+}
+
+.device-health.health-connected {
+  background: color-mix(in srgb, var(--success) 10%, var(--bg-elevated));
+}
+
+.inline-status.is-error {
+  background: color-mix(in srgb, var(--danger) 10%, var(--bg-elevated));
+  color: var(--danger);
+}
+
+.draft-state.is-dirty {
+  background: color-mix(in srgb, var(--warning) 11%, transparent);
+  color: var(--warning);
+}
+
+.draft-state.is-saved,
+.capability-badge.is-available {
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+  color: var(--success);
+}
+
+.card-icon {
+  border: 0;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--label-secondary) 12%, transparent);
+  box-shadow: none;
+}
+
+.risk-notice {
+  font-size: 0.72rem;
+}
+
+.notice-icon {
+  width: 1.7rem;
+  height: 1.7rem;
+  border-color: color-mix(in srgb, var(--warning) 28%, transparent);
+  color: var(--warning);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-canvas: #000000;
+    --bg-content: #1c1c1e;
+    --bg-elevated: #2c2c2e;
+    --bg-functional: rgb(36 36 38 / 86%);
+    --label-primary: #f5f5f7;
+    --label-secondary: #a1a1a6;
+    --separator: rgb(235 235 245 / 18%);
+    --tint: #0a84ff;
+    --tint-hover: #409cff;
+    --danger: #ff453a;
+    --success: #30d158;
+    --warning: #ffd60a;
+    --focus-ring: rgb(10 132 255 / 58%);
+    --border-strong: rgb(235 235 245 / 28%);
+  }
+
+  body {
+    background: var(--bg-canvas);
+  }
+
+  .app-header,
+  .workspace-nav {
+    border-color: var(--separator);
+    background: var(--bg-functional);
+  }
+
+  .panel,
+  .settings-card,
+  .sleep-section,
+  .custom-simple-tools,
+  input,
+  select,
+  textarea,
+  .effect-picker summary,
+  .color-picker-control,
+  .file-control,
+  .custom-color-control > span,
+  .image-preset {
+    background: var(--bg-content);
+  }
+
+  .settings-card,
+  .sleep-section,
+  .custom-simple-tools {
+    background: var(--bg-elevated);
+  }
+
+  .lighting-mode-switch button.is-active {
+    background: #636366;
+  }
+
+  .effect-options {
+    background: rgb(44 44 46 / 96%);
+  }
+
+  .risk-notice {
+    background: color-mix(in srgb, var(--warning) 7%, var(--bg-content));
+  }
+}
+
+@media (max-width: 880px) {
+  .app {
+    padding: 0.75rem 0.85rem 2rem;
+  }
+
+  .app-shell {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.9rem;
+  }
+
+  .workspace-nav {
+    position: sticky;
+    top: 5.5rem;
+    z-index: 15;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .workspace-nav button {
+    display: flex;
+    min-width: 0;
+    min-height: 3rem;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.18rem;
+    padding: 0.35rem;
+    text-align: center;
+  }
+
+  .workspace-nav-icon,
+  .workspace-nav strong {
+    grid-column: auto;
+    grid-row: auto;
+    margin: 0;
+  }
+
+  .workspace-nav small {
+    display: none;
+  }
+
+  .workspace-heading > p {
+    display: block;
+  }
+
+  .risk-notice {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 620px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  .app {
+    width: 100%;
+    overflow-x: clip;
+  }
+
+  .app-header {
+    position: relative;
+    top: 0;
+    min-width: 0;
+    min-height: 3.5rem;
+    padding: 0.48rem;
+    border-radius: var(--radius-group);
+  }
+
+  .brand-mark {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .brand-mark svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .app-header h1 {
+    max-width: 14rem;
+    font-size: 0.98rem;
+  }
+
+  .brand-lockup .eyebrow,
+  .connection-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .connection-pill {
+    width: 2rem;
+    min-height: 2rem;
+    margin-left: auto;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .workspace-nav {
+    overflow: hidden;
+  }
+
+  .workspace-heading {
+    margin-bottom: 0.65rem;
+    padding-inline: 0.2rem;
+  }
+
+  .workspace-heading > p {
+    font-size: 0.76rem;
+  }
+
+  .workspace,
+  .workspace-content,
+  .panel,
+  .lighting-panel,
+  .lighting-page-toolbar,
+  .lighting-editor,
+  .settings-card,
+  .sleep-section,
+  .device-workspace,
+  .display-panel {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .panel,
+  .lighting-panel,
+  .display-panel {
+    padding: 0.75rem;
+    border-radius: var(--radius-group);
+  }
+
+  .lighting-panel {
+    overflow: hidden;
+  }
+
+  .lighting-page-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .keyboard-preview {
+    width: 100%;
+    max-width: 100%;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .keyboard-preview::-webkit-scrollbar {
+    display: none;
+  }
+
+  .lighting-editor,
+  .device-workspace,
+  .display-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-card,
+  .sleep-section,
+  .custom-simple-tools {
+    border-radius: calc(var(--radius-group) - 4px);
+  }
+
+  .lighting-apply-bar {
+    flex-direction: column;
+  }
+
+  .risk-notice {
+    margin-top: 0.9rem;
+  }
+}
+
+@media (pointer: coarse) {
+  button,
+  select,
+  input:not([type="range"]):not([type="color"]),
+  .effect-picker summary,
+  .file-control {
+    min-height: 2.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto;
+    transition-duration: 0.01ms;
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .app-header,
+  .workspace-nav,
+  .effect-options {
+    background: var(--bg-elevated);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}

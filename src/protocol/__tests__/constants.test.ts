@@ -2,12 +2,11 @@ import { describe, expect, test } from "vitest";
 import {
   AJAZZ_VENDOR_ID,
   AK820_PRO_PRODUCT_IDS,
-  SCREEN_WIDTH,
-  SCREEN_HEIGHT,
   CHUNK_SIZE,
-  RGB565_FRAME_BYTES,
   CONTROL_USAGE_PAGE,
-  PACKET_LENGTH,
+  RGB565_FRAME_BYTES,
+  SCREEN_HEIGHT,
+  SCREEN_WIDTH,
 } from "../constants";
 
 describe("protocol constants", () => {
@@ -34,9 +33,5 @@ describe("protocol constants", () => {
 
   test("control usage page is 0xFF13", () => {
     expect(CONTROL_USAGE_PAGE).toBe(0xff13);
-  });
-
-  test("packet length is 64 bytes", () => {
-    expect(PACKET_LENGTH).toBe(64);
   });
 });

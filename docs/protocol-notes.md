@@ -740,10 +740,10 @@ A second wired sweep on 2026-07-27 validated this policy: every effect from
 the prior state. `0x00` was reapplied but not visually graded and remains
 untested.
 
-The mode data packet uses **byte 0 as the report ID = the requested lighting
-mode value** (not `0x04`). `ReportMessage` strips that leading byte into its
-`reportId` field; `WebHIDDeviceController` reconstructs the complete 64-byte
-unnumbered WebHID payload. Sub-fields:
+The mode data packet's **byte 0 is the requested lighting mode** (not `0x04`);
+hidapi-based references treat it as a report ID. The app builds every packet as
+the full 64 bytes in `src/protocol/` (indices equal the offsets below) and
+sends it unchanged as unnumbered WebHID feature report 0. Sub-fields:
 
 | Offset | Length | Field |
 |---|---|---|

@@ -12,8 +12,9 @@ The app separates four tasks:
 - Testing: optional physical effect validation
 
 Only the active workspace is rendered. Connection health remains visible in the
-header and links to recovery controls. The Testing workspace is visible by
-default and can be hidden with `VITE_SHOW_HARDWARE_TESTING=false`.
+header and links to recovery controls. The Testing workspace is hidden by
+default and can be shown with `VITE_SHOW_HARDWARE_TESTING=true`. Opening a
+workspace must never write to the keyboard; every write follows a click.
 
 ## Lighting workspace
 
@@ -76,3 +77,16 @@ screens.
 - Applied, busy, error, and disconnected states remain readable.
 
 See [Validation](validation.md) for the automated and physical boundary.
+
+## Stylesheet layering
+
+`src/index.css` imports ordered files from `src/styles/`; later passes refine
+earlier ones, so the import order is part of the design. Declarations fully
+overridden by a later rule with the same selector and media context were
+removed, which was verified by comparing every element's computed style across
+all workspaces, widths, and colour schemes before and after.
+
+Write `-webkit-backdrop-filter` **before** `backdrop-filter`. When the unprefixed
+property came first, the production CSS minifier kept only the prefixed one,
+which Chrome ignores, so the header and navigation silently lost their blur in
+deployed builds.

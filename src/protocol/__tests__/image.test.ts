@@ -1,63 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { CHUNK_SIZE, RGB565_FRAME_BYTES } from "../constants";
-import {
-  buildImageCfgReport,
-  buildImageDataChunks,
-  buildImageSaveReport,
-  buildImageStartReport,
-} from "../image";
-
-describe("buildImageStartReport", () => {
-  test("returns START control packet with enable=0 (AKS075 framing)", () => {
-    const msg = buildImageStartReport();
-    expect(msg.reportId).toBe(0x04);
-    expect(msg.bytes.byteLength).toBe(63);
-    expect(msg.bytes[0]).toBe(0x18); // CMD_START
-    // packet byte 8 (enable flag) → bytes[7] after stripping reportId
-    expect(msg.bytes[7]).toBe(0x00);
-    for (let i = 1; i < 63; i++) {
-      if (i === 7) continue;
-      expect(msg.bytes[i]).toBe(0);
-    }
-  });
-});
-
-describe("buildImageCfgReport", () => {
-  test("encodes chunk count as uint16 LE with AKS075 sub-command 0x03", () => {
-    const msg = buildImageCfgReport(8);
-    expect(msg.reportId).toBe(0x04);
-    expect(msg.bytes.byteLength).toBe(63);
-    expect(msg.bytes[0]).toBe(0x72); // CMD_IMAGE
-    expect(msg.bytes[1]).toBe(0x03);
-    expect(msg.bytes[7]).toBe(8); // chunk count lo
-    expect(msg.bytes[8]).toBe(0); // chunk count hi
-  });
-
-  test("encodes large chunk counts correctly (uint16 LE)", () => {
-    const msg = buildImageCfgReport(0x0123);
-    expect(msg.bytes[7]).toBe(0x23);
-    expect(msg.bytes[8]).toBe(0x01);
-  });
-
-  test("rejects out-of-range chunk count", () => {
-    expect(() => buildImageCfgReport(0)).toThrow(/chunk count/i);
-    expect(() => buildImageCfgReport(0x10000)).toThrow(/chunk count/i);
-  });
-});
-
-describe("buildImageSaveReport", () => {
-  test("returns SAVE control packet (0x02, enable=0)", () => {
-    const msg = buildImageSaveReport();
-    expect(msg.reportId).toBe(0x04);
-    expect(msg.bytes.byteLength).toBe(63);
-    expect(msg.bytes[0]).toBe(0x02); // CMD_SAVE
-    expect(msg.bytes[7]).toBe(0x00);
-    for (let i = 1; i < 63; i++) {
-      if (i === 7) continue;
-      expect(msg.bytes[i]).toBe(0);
-    }
-  });
-});
+import { buildImageDataChunks } from "../image";
 
 describe("buildImageDataChunks", () => {
   test("single static frame: 9 chunks of 4096 bytes each", () => {

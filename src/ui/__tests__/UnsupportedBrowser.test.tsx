@@ -1,7 +1,5 @@
-// biome-ignore lint/correctness/noUnusedImports: required by this test file's classic JSX transform
-import React from "react";
+import { render } from "@testing-library/preact";
 import { describe, expect, test } from "vitest";
-import { render } from "@testing-library/react";
 import { UnsupportedBrowser } from "../UnsupportedBrowser";
 
 describe("UnsupportedBrowser", () => {

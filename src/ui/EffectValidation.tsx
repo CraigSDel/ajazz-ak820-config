@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "preact/hooks";
 import { effectForMode, LIGHTING_EFFECTS } from "../lighting/effects";
 import type { LightingMode } from "../protocol/lighting";
 
@@ -51,11 +51,14 @@ function initialObservations(): Observations {
 export function EffectValidation({
   mode,
   canApply,
+  applied,
   onSelectAndApply,
   applyStatus,
 }: {
   mode: LightingMode;
   canApply: boolean;
+  /** Whether `mode` has been written to the keyboard in this session. */
+  applied: boolean;
   onSelectAndApply(mode: LightingMode): Promise<void>;
   applyStatus: string | null;
 }) {
@@ -152,10 +155,17 @@ export function EffectValidation({
         <span style={{ width: `${(tested / LIGHTING_EFFECTS.length) * 100}%` }} />
       </div>
       <p className="validation-instruction">
-        Mode {mode} · observe the keyboard, then record what it shows.
+        Protocol effect {mode} ·{" "}
+        {applied
+          ? "observe the keyboard, then record what it shows."
+          : "apply it to the keyboard to begin."}
       </p>
-      <button type="button" disabled={!canApply} onClick={reattempt}>
-        Reattempt RGB
+      <button
+        type="button"
+        disabled={!canApply}
+        onClick={applied ? reattempt : () => void onSelectAndApply(mode)}
+      >
+        {applied ? "Reattempt RGB" : "Apply to keyboard"}
       </button>
       {applyStatus && (
         <p className="lighting-feedback" role="status" aria-live="polite">
@@ -168,7 +178,7 @@ export function EffectValidation({
           value={observation.note}
           maxLength={MAX_NOTE_LENGTH}
           placeholder="What appeared instead?"
-          onChange={(event) => update({ note: event.target.value })}
+          onInput={(event) => update({ note: event.currentTarget.value })}
         />
       </label>
       <fieldset className="validation-results">
@@ -180,7 +190,9 @@ export function EffectValidation({
               observation.result === result ? `result-${result} is-active` : `result-${result}`
             }
             aria-pressed={observation.result === result}
-            disabled={!canApply || (result === "wrong-effect" && !observation.note.trim())}
+            disabled={
+              !canApply || !applied || (result === "wrong-effect" && !observation.note.trim())
+            }
             onClick={() => recordAndContinue(result)}
             key={result}
           >

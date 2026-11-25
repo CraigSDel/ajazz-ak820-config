@@ -1,6 +1,4 @@
-// biome-ignore lint/correctness/noUnusedImports: required by this test file's classic JSX transform
-import React from "react";
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { cleanup, fireEvent, render } from "@testing-library/preact";
 import { afterEach, describe, expect, test } from "vitest";
 import { Configurator } from "../App";
 import { DeviceSessionProvider, useDeviceSession } from "../device/DeviceSession";

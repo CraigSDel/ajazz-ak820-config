@@ -1,77 +1,52 @@
 import { createHash } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
-import { extname, join } from "node:path";
+import { join } from "node:path";
 import { describe, expect, test } from "vitest";
-import { RGB565_FRAME_BYTES } from "../../protocol/constants";
-import { inspectWebP, processAnimatedImage } from "../animated";
-import { processStaticImage } from "../static";
+import { inspectWebP } from "../animated";
+import { inspectStaticImageDimensions } from "../static";
 
+// Bundled presets are WebP, which only the browser can decode; the real
+// pipeline is exercised in Chrome. These checks pin the shipped bytes and
+// confirm each file is already at the panel's native size.
 const imagesDirectory = join(process.cwd(), "images");
 
-type Baseline = {
-  sourceSha256: string;
-  rgb565Sha256?: string;
-  webPInfo?: { animated: boolean; width: number; height: number; frameCount: number };
-  gifInfo?: { frameCount: number; delayMs: number };
-};
-
-const baselines: Record<string, Baseline> = {
-  "pikachu.png": {
-    sourceSha256: "2ea698124dfdc2705919f72289ef2eb075fbe6382f4f68915f3549ace3e9e69c",
-    rgb565Sha256: "44f11e5c703fbd3e397c88113d2c5f80b18d19a77c961fef738239e2add6ff19",
+const baselines: Record<string, { sha256: string; frameCount: number }> = {
+  "sunset.webp": {
+    sha256: "517e8b26506630918e0d0acbf59b9bca4bf42f33f5f3e954de81e962347e1d9b",
+    frameCount: 1,
   },
-  "java_duke.jpeg": {
-    sourceSha256: "37de14611c8ca6097a5cfb2fd8a76c93e31b7a97b179d3408dee9e13362f303b",
-    rgb565Sha256: "3fbf5183e123cc669c4bae24e07c17e8fbc051e1f4e5e0ef5c4848f72a1656b7",
+  "java_duke.webp": {
+    sha256: "cef82adfd2e48e9968e322587d14929fdc6e61a10c1171747ed90dc68917270f",
+    frameCount: 1,
   },
-  "pikachu.webp": {
-    sourceSha256: "6235cf0e460d21bbaf8644650513ddf6d00016dbbfc82a1730dc022724b2c684",
-    webPInfo: { animated: true, width: 500, height: 500, frameCount: 23 },
+  "orbit.webp": {
+    sha256: "1e10ee1e9d12b08b0abbe9ced04fc4b01e9004dd97c3bb44ab950f2b6491e7ad",
+    frameCount: 16,
   },
-  "bye-bye-pokemon.gif": {
-    sourceSha256: "949e99a9f3658ef86b916a1f586a95214bf3a0018151c3103c8cf5489c57c057",
-    gifInfo: { frameCount: 12, delayMs: 50 },
+  "aurora.webp": {
+    sha256: "275c2afb9037ffca5800b915d3106f81dd2d70c34318e0c468953fd78d28d34f",
+    frameCount: 20,
   },
 };
 
-const mimeTypes: Record<string, string> = {
-  ".jpeg": "image/jpeg",
-  ".jpg": "image/jpeg",
-  ".png": "image/png",
-  ".webp": "image/webp",
-  ".gif": "image/gif",
-};
-
-function sha256(bytes: Uint8Array): string {
-  return createHash("sha256").update(bytes).digest("hex");
-}
-
-describe("images regression fixtures", () => {
-  test("every image has a regression baseline", async () => {
-    const imageNames = (await readdir(imagesDirectory)).sort();
-    expect(Object.keys(baselines).sort()).toEqual(imageNames);
+describe("bundled preset images", () => {
+  test("every image has a baseline", async () => {
+    expect((await readdir(imagesDirectory)).sort()).toEqual(Object.keys(baselines).sort());
   });
 
-  test.each(Object.entries(baselines))("%s", async (name, baseline) => {
+  test.each(Object.entries(baselines))("%s", async (name, { sha256, frameCount }) => {
     const bytes = new Uint8Array(await readFile(join(imagesDirectory, name)));
-    const mimeType = mimeTypes[extname(name).toLowerCase()];
-    expect(mimeType, `unsupported fixture extension for ${name}`).toBeDefined();
-
-    expect(sha256(bytes)).toBe(baseline.sourceSha256);
-    if (baseline.rgb565Sha256) {
-      const output = await processStaticImage(new File([bytes], name, { type: mimeType }));
-      expect(output).toHaveLength(RGB565_FRAME_BYTES);
-      expect(sha256(output)).toBe(baseline.rgb565Sha256);
-    } else if (baseline.webPInfo) {
-      expect(inspectWebP(bytes.buffer)).toEqual(baseline.webPInfo);
-    } else if (baseline.gifInfo) {
-      const { frameCount, delayMs } = baseline.gifInfo;
-      const output = await processAnimatedImage(new File([bytes], name, { type: mimeType }));
-      expect(output.frames).toHaveLength(frameCount);
-      expect(output.delaysMs).toEqual(Array.from({ length: frameCount }, () => delayMs));
-      for (const frame of output.frames) expect(frame).toHaveLength(RGB565_FRAME_BYTES);
+    expect(createHash("sha256").update(bytes).digest("hex")).toBe(sha256);
+    if (frameCount === 1) {
+      const { width, height } = inspectStaticImageDimensions(bytes, "image/webp");
+      expect(Math.max(width, height)).toBe(128);
     } else {
-      throw new Error(`fixture ${name} has no processed-output or WebP baseline`);
+      expect(inspectWebP(bytes.buffer)).toEqual({
+        animated: true,
+        width: 128,
+        height: 128,
+        frameCount,
+      });
     }
   });
 });

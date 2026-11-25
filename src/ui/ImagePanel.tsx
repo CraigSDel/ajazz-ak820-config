@@ -1,29 +1,27 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { useDeviceSession } from "../device/DeviceSession";
-import { processStaticImage } from "../image/static";
-import { isAnimatedWebP, processAnimatedImage } from "../image/animated";
+import { type PreparedImages, prepareImages } from "../image/prepare";
 import { IMAGE_PRESETS, type ImagePreset } from "../image/presets";
-import { uploadStaticImage, uploadAnimatedImage } from "../operations";
-import { MAX_TFT_FRAMES, SCREEN_WIDTH, SCREEN_HEIGHT } from "../protocol/constants";
+import { rgb565ToRgba } from "../image/rgb565";
+import { uploadImage } from "../operations";
+import { MAX_TFT_FRAMES, SCREEN_HEIGHT, SCREEN_WIDTH } from "../protocol/constants";
+import { classNames, errorMessage, plural } from "./text";
 
-type Prepared = {
-  frames: Uint8Array[];
-  delaysMs: number[];
-  files: { id: string; name: string; frameCount: number }[];
-  staticSingle: boolean;
-};
-
-const STATIC_FRAME_DELAY_MS = 500;
-const MAX_SELECTION_BYTES = 50 * 1024 * 1024;
+/** Browsers can't usefully show frames faster than this, whatever the file asks for. */
+const MIN_PREVIEW_FRAME_MS = 20;
 
 export function ImagePanel() {
   const { connected, activeOperation, runOperation } = useDeviceSession();
-  const [prepared, setPrepared] = useState<Prepared | null>(null);
+  const [prepared, setPrepared] = useState<PreparedImages | null>(null);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const inputDisabled = !connected || activeOperation !== null || processing;
+  const uploadAbort = useRef<AbortController | null>(null);
+  const uploading = activeOperation === "image upload";
+  // Preparing and previewing images is local; only sending needs the keyboard.
+  const inputDisabled = activeOperation !== null || processing;
 
   useEffect(() => {
     if (!prepared) return;
@@ -32,7 +30,7 @@ export function ImagePanel() {
     const showNext = () => {
       drawPreview(canvasRef.current, prepared.frames[frameIndex]);
       if (prepared.frames.length > 1) {
-        const delay = Math.max(20, prepared.delaysMs[frameIndex]);
+        const delay = Math.max(MIN_PREVIEW_FRAME_MS, prepared.delaysMs[frameIndex]);
         frameIndex = (frameIndex + 1) % prepared.frames.length;
         timer = setTimeout(showNext, delay);
       }
@@ -49,49 +47,13 @@ export function ImagePanel() {
     setPrepared(null);
     setProcessing(true);
     try {
-      const selectionBytes = selectedFiles.reduce((total, file) => total + file.size, 0);
-      if (selectedFiles.length > MAX_TFT_FRAMES) {
-        throw new Error(`Choose no more than ${MAX_TFT_FRAMES} files at once.`);
-      }
-      if (selectionBytes > MAX_SELECTION_BYTES) {
-        throw new Error("The selected files exceed the combined 50 MB limit.");
-      }
-      const frames: Uint8Array[] = [];
-      const delaysMs: number[] = [];
-      const files: Prepared["files"] = [];
-      for (const original of selectedFiles) {
-        const file = normalizeImageType(original);
-        const id = `${original.name}-${original.size}-${original.lastModified}`;
-        const animated =
-          file.type === "image/gif" || (file.type === "image/webp" && (await isAnimatedWebP(file)));
-        if (animated) {
-          const result = await processAnimatedImage(file);
-          frames.push(...result.frames);
-          delaysMs.push(...result.delaysMs);
-          files.push({ id, name: original.name, frameCount: result.frames.length });
-        } else {
-          frames.push(await processStaticImage(file));
-          delaysMs.push(STATIC_FRAME_DELAY_MS);
-          files.push({ id, name: original.name, frameCount: 1 });
-        }
-        if (frames.length > MAX_TFT_FRAMES) {
-          throw new Error(
-            `The selection contains ${frames.length} frames; the keyboard supports at most ${MAX_TFT_FRAMES}.`,
-          );
-        }
-      }
-      if (frames.length === 0) throw new Error("Choose at least one image.");
-      setPrepared({
-        frames,
-        delaysMs,
-        files,
-        staticSingle: selectedFiles.length === 1 && frames.length === 1,
-      });
+      const images = await prepareImages(selectedFiles);
+      setPrepared(images);
       setStatus(
-        `${selectedFiles.length} ${selectedFiles.length === 1 ? "image" : "images"} ready (${frames.length} ${frames.length === 1 ? "frame" : "frames"}).`,
+        `${plural(selectedFiles.length, "image")} ready (${plural(images.frames.length, "frame")}).`,
       );
-    } catch (e) {
-      setStatus(e instanceof Error ? e.message : "Failed to process file");
+    } catch (error) {
+      setStatus(errorMessage(error, "Failed to process file"));
     } finally {
       setProcessing(false);
     }
@@ -99,27 +61,35 @@ export function ImagePanel() {
 
   const onUpload = async () => {
     if (!prepared) return;
+    const abort = new AbortController();
+    uploadAbort.current = abort;
     setStatus("Uploading…");
+    setProgress(0);
     try {
-      if (prepared.staticSingle) {
-        await runOperation("image upload", (operationController) =>
-          uploadStaticImage(operationController, prepared.frames[0], setProgress),
+      await runOperation("image upload", (operationController) =>
+        uploadImage(
+          operationController,
+          prepared.frames,
+          prepared.isSingleStill ? undefined : prepared.delaysMs,
+          { onProgress: setProgress, signal: abort.signal },
+        ),
+      );
+      setStatus("Uploaded");
+    } catch (error) {
+      if (abort.signal.aborted) {
+        setStatus(
+          "Upload cancelled before the keyboard saved it. If the display looks wrong, send an image again.",
         );
       } else {
-        await runOperation("image upload", (operationController) =>
-          uploadAnimatedImage(
-            operationController,
-            prepared.frames,
-            prepared.delaysMs,
-            setProgress,
-          ),
-        );
+        setStatus(errorMessage(error, "Upload failed"));
       }
-      setStatus("Uploaded");
-    } catch (e) {
-      setStatus(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      uploadAbort.current = null;
+      setProgress(0);
     }
   };
+
+  useEffect(() => () => uploadAbort.current?.abort(), []);
 
   const onPreset = async (preset: ImagePreset) => {
     setStatus(null);
@@ -127,14 +97,16 @@ export function ImagePanel() {
     try {
       const response = await fetch(preset.url);
       if (!response.ok) throw new Error(`Could not load ${preset.name}.`);
-      const bytes = await response.arrayBuffer();
-      const file = new File([bytes], preset.fileName, { type: preset.mimeType });
+      const blob = await response.blob();
+      const file = new File([blob], preset.fileName, { type: blob.type });
       await onFiles([file]);
-    } catch (e) {
-      setStatus(e instanceof Error ? e.message : "Failed to load preset image");
+    } catch (error) {
+      setStatus(errorMessage(error, "Failed to load preset image"));
       setProcessing(false);
     }
   };
+
+  const timingNote = prepared && describeTiming(prepared);
 
   return (
     <section className="panel display-panel">
@@ -145,7 +117,23 @@ export function ImagePanel() {
         </div>
         <span>128 × 128 TFT</span>
       </header>
-      <div className="display-preview">
+      <section
+        className={classNames("display-preview", dragging && "is-drop-target")}
+        aria-label="Image preview. Drop image files here."
+        onDragOver={(event) => {
+          if (inputDisabled) return;
+          event.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(event) => {
+          event.preventDefault();
+          setDragging(false);
+          if (inputDisabled) return;
+          const dropped = Array.from(event.dataTransfer?.files ?? []);
+          if (dropped.length > 0) void onFiles(dropped);
+        }}
+      >
         <div className="display-device-preview">
           <canvas
             ref={canvasRef}
@@ -154,8 +142,8 @@ export function ImagePanel() {
             aria-label="Keyboard display image preview"
           />
         </div>
-        {!prepared && <p className="empty-state-copy">Preview</p>}
-      </div>
+        {!prepared && <p className="empty-state-copy">Drop images here to preview</p>}
+      </section>
       <div className="display-controls">
         <fieldset className="image-presets" disabled={inputDisabled}>
           <legend>Try a bundled image</legend>
@@ -173,7 +161,7 @@ export function ImagePanel() {
             ))}
           </div>
         </fieldset>
-        <label className={`file-control${inputDisabled ? " is-disabled" : ""}`}>
+        <label className={classNames("file-control", inputDisabled && "is-disabled")}>
           <span>
             <strong>{processing ? "Preparing images…" : "Choose images"}</strong>
             <small>PNG, JPEG, WebP or GIF</small>
@@ -184,41 +172,61 @@ export function ImagePanel() {
             multiple
             accept="image/png,image/jpeg,image/webp,image/gif"
             disabled={inputDisabled}
-            onChange={(e) => e.target.files && void onFiles(Array.from(e.target.files))}
+            onChange={(event) => {
+              const chosen = Array.from(event.currentTarget.files ?? []);
+              // Reset so choosing the same file again still fires onChange.
+              event.currentTarget.value = "";
+              if (chosen.length > 0) void onFiles(chosen);
+            }}
           />
         </label>
         {prepared && (
           <details className="image-selection">
             <summary>
-              {prepared.files.length} {prepared.files.length === 1 ? "file" : "files"} ·{" "}
-              {prepared.frames.length} {prepared.frames.length === 1 ? "frame" : "frames"}
+              {plural(prepared.files.length, "file")} · {plural(prepared.frames.length, "frame")}
             </summary>
             <ol>
               {prepared.files.map((file) => (
                 <li key={file.id}>
                   <span>{file.name}</span>
-                  <small>
-                    {file.frameCount} frame{file.frameCount === 1 ? "" : "s"}
-                  </small>
+                  <small>{plural(file.frameCount, "frame")}</small>
                 </li>
               ))}
             </ol>
           </details>
         )}
-        <button
-          type="button"
-          className="primary-action"
-          aria-label="Upload image to keyboard"
-          disabled={!connected || !prepared || activeOperation !== null || processing}
-          onClick={onUpload}
-        >
-          Send to keyboard
-        </button>
+        {timingNote && (
+          <p className="display-format-note" role="note">
+            {timingNote}
+          </p>
+        )}
+        {uploading ? (
+          <button
+            type="button"
+            className="secondary-action"
+            onClick={() => uploadAbort.current?.abort()}
+          >
+            Cancel upload
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="primary-action"
+            aria-label="Upload image to keyboard"
+            disabled={!connected || !prepared || activeOperation !== null || processing}
+            onClick={onUpload}
+          >
+            Send to keyboard
+          </button>
+        )}
+        {!connected && prepared && (
+          <p className="display-format-note">Connect your keyboard on the Device tab to send.</p>
+        )}
         <p className="display-format-note">
           Multiple images play in order. Still images show for 0.5 seconds each; up to{" "}
           {MAX_TFT_FRAMES} frames.
         </p>
-        {progress > 0 && progress < 1 && (
+        {uploading && (
           <div className="progress-status">
             <span>Uploading to keyboard</span>
             <strong>{Math.round(progress * 100)}%</strong>
@@ -235,39 +243,27 @@ export function ImagePanel() {
   );
 }
 
-function normalizeImageType(file: File): File {
-  if (["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type)) return file;
-  const extension = file.name.split(".").pop()?.toLowerCase();
-  const mime =
-    extension === "png"
-      ? "image/png"
-      : extension === "jpg" || extension === "jpeg"
-        ? "image/jpeg"
-        : extension === "webp"
-          ? "image/webp"
-          : extension === "gif"
-            ? "image/gif"
-            : null;
-  if (!mime) throw new Error(`Unsupported image type: ${file.name}`);
-  return new File([file], file.name, { type: mime, lastModified: file.lastModified });
+/** Explain any frames whose timing had to change to fit the keyboard's limits. */
+function describeTiming({ extendedFrames, shortenedFrames }: PreparedImages): string | null {
+  const notes: string[] = [];
+  if (extendedFrames > 0) {
+    const [verb, their] = extendedFrames === 1 ? ["was", "its"] : ["were", "their"];
+    notes.push(
+      `${plural(extendedFrames, "long frame")} ${verb} repeated to keep ${their} original timing.`,
+    );
+  }
+  if (shortenedFrames > 0) {
+    notes.push(
+      `${plural(shortenedFrames, "frame")} will show for 0.51 s, the longest the keyboard supports, because the 255-frame limit was reached.`,
+    );
+  }
+  return notes.length > 0 ? notes.join(" ") : null;
 }
 
 function drawPreview(canvas: HTMLCanvasElement | null, rgb565: Uint8Array) {
-  if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-  const img = ctx.createImageData(SCREEN_WIDTH, SCREEN_HEIGHT);
-  for (let i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i++) {
-    const lo = rgb565[i * 2];
-    const hi = rgb565[i * 2 + 1];
-    const v = (hi << 8) | lo;
-    const r = ((v >> 11) & 0x1f) << 3;
-    const g = ((v >> 5) & 0x3f) << 2;
-    const b = (v & 0x1f) << 3;
-    img.data[i * 4] = r;
-    img.data[i * 4 + 1] = g;
-    img.data[i * 4 + 2] = b;
-    img.data[i * 4 + 3] = 255;
-  }
-  ctx.putImageData(img, 0, 0);
+  const context = canvas?.getContext("2d");
+  if (!context) return;
+  const image = context.createImageData(SCREEN_WIDTH, SCREEN_HEIGHT);
+  rgb565ToRgba(rgb565, image.data);
+  context.putImageData(image, 0, 0);
 }
